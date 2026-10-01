@@ -1,0 +1,22 @@
+{
+  "name": "insight-ai",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @insight/web",
+    "build": "npm run build -w @insight/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "db:generate": "npm run generate -w @insight/database",
+    "db:migrate": "npm run migrate -w @insight/database"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "drizzle-orm": "^0.45.3"
+  }
+}
