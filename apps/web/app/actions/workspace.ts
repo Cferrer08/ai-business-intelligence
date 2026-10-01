@@ -9,7 +9,7 @@ import { assertMembership } from "@/lib/server/workspace";
 import { fieldErrors, workspaceNameSchema } from "@/lib/validation";
 import { workspaceSlug } from "@/lib/slug";
 import { audit } from "@/lib/server/audit";
-import { logger } from "@/lib/server/logger";
+import { errorFields, logger } from "@/lib/server/logger";
 import { z } from "zod";
 
 export type WorkspaceState = ActionResult | null;
@@ -41,7 +41,7 @@ export async function createWorkspace(_prev: WorkspaceState, form: FormData): Pr
       return ws.id;
     });
   } catch (err) {
-    logger.error("workspace.create_failed", { userId: session.user.id, err: String(err) });
+    logger.error("workspace.create_failed", { userId: session.user.id, ...errorFields(err) });
     return { ok: false, error: "The workspace could not be created. Try again.", values };
   }
 

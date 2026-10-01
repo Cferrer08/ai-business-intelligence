@@ -1,6 +1,6 @@
 import "server-only";
 import { auditLogs, db } from "@insight/database";
-import { logger } from "./logger";
+import { errorFields, logger } from "./logger";
 
 export type AuditAction =
   | "auth.signup"
@@ -9,7 +9,10 @@ export type AuditAction =
   | "auth.logout"
   | "workspace.create"
   | "workspace.switch"
-  | "workspace.rename";
+  | "workspace.rename"
+  | "dataset.upload"
+  | "dataset.upload_failed"
+  | "dataset.delete";
 
 export async function audit(entry: {
   action: AuditAction;
@@ -24,6 +27,6 @@ export async function audit(entry: {
     await db.insert(auditLogs).values({ ...entry, metadata: entry.metadata ?? {} });
   } catch (err) {
     // Audit failures are logged but never break the user's request.
-    logger.error("audit.write_failed", { action: entry.action, err: String(err) });
+    logger.error("audit.write_failed", { action: entry.action, ...errorFields(err) });
   }
 }

@@ -1,7 +1,13 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { Pool } from "pg";
+import { existsSync } from "node:fs";
 import path from "node:path";
+
+// Load packages/database/.env when present, so commands work the same in PowerShell, cmd and bash
+// without inline environment-variable syntax. Variables already set in the shell win.
+const envFile = path.join(__dirname, "..", ".env");
+if (!process.env.DATABASE_URL && existsSync(envFile)) process.loadEnvFile(envFile);
 
 async function main() {
   const url = process.env.DATABASE_URL;

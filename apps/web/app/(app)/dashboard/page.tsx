@@ -3,6 +3,7 @@ import Link from "next/link";
 import { and, auditLogs, count, db, desc, eq, inArray, users, workspaceMembers } from "@insight/database";
 import { PageHeader } from "@/components/app/PageHeader";
 import { requireWorkspace } from "@/lib/server/workspace";
+import { countDatasets } from "@/lib/server/datasets";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -15,14 +16,17 @@ const ACTIVITY_LABEL: Record<string, string> = {
   "workspace.rename": "renamed the workspace",
   "workspace.switch": "opened the workspace",
   "auth.login": "signed in",
+  "dataset.upload": "uploaded a dataset",
+  "dataset.delete": "deleted a dataset",
 };
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ denied?: string }> }) {
   const { workspace, session } = await requireWorkspace();
   const { denied } = await searchParams;
 
-  const [[{ memberCount }], activity] = await Promise.all([
+  const [[{ memberCount }], datasetCount, activity] = await Promise.all([
     db.select({ memberCount: count() }).from(workspaceMembers).where(eq(workspaceMembers.workspaceId, workspace.id)),
+    countDatasets(workspace.id),
     db
       .select({ id: auditLogs.id, action: auditLogs.action, createdAt: auditLogs.createdAt, user: { id: users.id, name: users.name } })
       .from(auditLogs)
@@ -32,16 +36,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       .limit(6),
   ]);
 
-  const checklist = [
+  const checklist: { label: string; done: boolean; note?: string; href?: string }[] = [
     { label: "Create your account", done: true },
     { label: "Set up a workspace", done: true },
-    { label: "Upload your first dataset", done: false, note: "Data upload arrives in phase 2." },
+    { label: "Upload your first dataset", done: datasetCount > 0, href: "/data" },
     { label: "Ask the analyst a question", done: false, note: "The AI analyst arrives in phase 3." },
   ];
 
   return (
     <>
-      <PageHeader title={workspace.name} description={`${memberCount} ${memberCount === 1 ? "member" : "members"}. You're signed in as ${workspace.role.toLowerCase()}.`} />
+      <PageHeader title={workspace.name} description={`${memberCount} ${memberCount === 1 ? "member" : "members"}, ${datasetCount} ${datasetCount === 1 ? "dataset" : "datasets"}. You're signed in as ${workspace.role.toLowerCase()}.`} />
 
       <div className="space-y-10 px-6 py-8 lg:px-10">
         {denied ? (
@@ -62,7 +66,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               ))}
             </dl>
             <p className="border-t border-line px-5 py-3 text-sm text-ink-soft">
-              These fill in from your own data once you upload a dataset with dates and revenue.
+              {datasetCount > 0
+                ? "The AI analyst (phase 3) calculates these from your datasets with date and revenue columns."
+                : "These are calculated from your own data once you upload a dataset with dates and revenue."}
             </p>
           </div>
         </section>
@@ -81,7 +87,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                   </span>
                   <div>
                     <p className={item.done ? "text-ink-soft line-through decoration-ink-muted/50" : "font-medium"}>
-                      {item.label}<span className="sr-only">{item.done ? " (done)" : " (to do)"}</span>
+                      {item.href && !item.done ? <Link href={item.href} className="text-signal hover:underline">{item.label}</Link> : item.label}
+                      <span className="sr-only">{item.done ? " (done)" : " (to do)"}</span>
                     </p>
                     {item.note ? <p className="text-sm text-ink-muted">{item.note}</p> : null}
                   </div>

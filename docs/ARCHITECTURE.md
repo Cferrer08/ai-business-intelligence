@@ -12,14 +12,14 @@ insight-ai/
 │   ├── lib/auth/             Passwords, session tokens, sessions, rate limiting
 │   ├── lib/server/           Tenancy guard, audit log, logger (server-only)
 │   └── e2e/                  Playwright end-to-end suite
+├── services/data-engine/     Python FastAPI service: file validation, typing, profiling
 ├── packages/database/        Drizzle schema, client, SQL migrations, migrator
 ├── packages/types/           Types shared with future AI and data-engine layers
 ├── infrastructure/           docker-compose for local Postgres
 └── docs/
 ```
 
-Folders for the Python data engine (`services/data-engine`) and the AI layer (`ai/`) are
-created in Phases 2 and 3, when they contain real code.
+The AI layer (`ai/`) is created in Phase 3. See `DATA_ENGINE.md` for the engine.
 
 ## Request flow
 
@@ -42,7 +42,11 @@ created in Phases 2 and 3, when they contain real code.
 | `workspace_members` | User ↔ workspace with role. Unique per pair. |
 | `audit_logs` | Security-relevant events, indexed by workspace and user over time. |
 
-Later phases add tables (datasets, analyses, documents, usage, billing). Each carries
+| `datasets` | Upload metadata, status (processing/ready/failed), counts, quality score. Soft-deletable. |
+| `dataset_columns` | One row per column: type, role, concept, missing/unique counts, stats. |
+| `dataset_profiles` | Full engine profile (JSON), read notes, engine version. |
+
+Later phases add tables (analyses, documents, usage, billing). Each carries
 `workspace_id`, and every query takes that id from `requireWorkspace()`, never from input.
 
 ## Why Drizzle

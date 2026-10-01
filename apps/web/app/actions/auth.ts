@@ -8,7 +8,7 @@ import { clientIp, createSession, destroySession, getSession } from "@/lib/auth/
 import { loginLimiter, signupLimiter } from "@/lib/auth/rate-limit";
 import { fieldErrors, loginSchema, signupSchema } from "@/lib/validation";
 import { audit } from "@/lib/server/audit";
-import { logger } from "@/lib/server/logger";
+import { errorFields, logger } from "@/lib/server/logger";
 
 export type AuthState = ActionResult | null;
 
@@ -41,7 +41,7 @@ export async function signup(_prev: AuthState, form: FormData): Promise<AuthStat
     if (isUniqueViolation(err)) {
       return { ok: false, error: "An account with this email already exists.", fieldErrors: { email: "Already registered. Sign in instead." }, values };
     }
-    logger.error("auth.signup_failed", { err: String(err) });
+    logger.error("auth.signup_failed", { ...errorFields(err) });
     return { ok: false, error: "Your account could not be created. Try again.", values };
   }
 

@@ -10,6 +10,21 @@ function write(level: Level, event: string, fields: Record<string, unknown> = {}
   else console.log(line);
 }
 
+/**
+ * Error details for logs. Database errors are wrapped ("Failed query: …"); the real reason
+ * (missing table, refused connection, constraint) is on `cause`, so include it.
+ */
+export function errorFields(err: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = { err: err instanceof Error ? err.message : String(err) };
+  const cause = (err as { cause?: unknown })?.cause;
+  if (cause) {
+    out.cause = cause instanceof Error ? cause.message : String(cause);
+    const code = (cause as { code?: unknown }).code;
+    if (code) out.code = code;
+  }
+  return out;
+}
+
 export const logger = {
   info: (event: string, fields?: Record<string, unknown>) => write("info", event, fields),
   warn: (event: string, fields?: Record<string, unknown>) => write("warn", event, fields),

@@ -1,0 +1,804 @@
+{
+ "data": [
+  {
+   "order": "A0",
+   "date": "2026-03-01",
+   "customer": {
+    "id": "C0",
+    "tier": "gold"
+   },
+   "total": 20.0,
+   "paid": "no"
+  },
+  {
+   "order": "A1",
+   "date": "2026-03-02",
+   "customer": {
+    "id": "C1",
+    "tier": "silver"
+   },
+   "total": 23.1,
+   "paid": "yes"
+  },
+  {
+   "order": "A2",
+   "date": "2026-03-03",
+   "customer": {
+    "id": "C2",
+    "tier": "gold"
+   },
+   "total": 26.2,
+   "paid": "yes"
+  },
+  {
+   "order": "A3",
+   "date": "2026-03-04",
+   "customer": {
+    "id": "C3",
+    "tier": "silver"
+   },
+   "total": 29.3,
+   "paid": "yes"
+  },
+  {
+   "order": "A4",
+   "date": "2026-03-05",
+   "customer": {
+    "id": "C4",
+    "tier": "gold"
+   },
+   "total": 32.4,
+   "paid": "yes"
+  },
+  {
+   "order": "A5",
+   "date": "2026-03-06",
+   "customer": {
+    "id": "C5",
+    "tier": "silver"
+   },
+   "total": 35.5,
+   "paid": "no"
+  },
+  {
+   "order": "A6",
+   "date": "2026-03-07",
+   "customer": {
+    "id": "C6",
+    "tier": "gold"
+   },
+   "total": 38.6,
+   "paid": "yes"
+  },
+  {
+   "order": "A7",
+   "date": "2026-03-08",
+   "customer": {
+    "id": "C7",
+    "tier": "silver"
+   },
+   "total": 41.7,
+   "paid": "yes"
+  },
+  {
+   "order": "A8",
+   "date": "2026-03-09",
+   "customer": {
+    "id": "C8",
+    "tier": "gold"
+   },
+   "total": 44.8,
+   "paid": "yes"
+  },
+  {
+   "order": "A9",
+   "date": "2026-03-10",
+   "customer": {
+    "id": "C0",
+    "tier": "silver"
+   },
+   "total": 47.9,
+   "paid": "yes"
+  },
+  {
+   "order": "A10",
+   "date": "2026-03-11",
+   "customer": {
+    "id": "C1",
+    "tier": "gold"
+   },
+   "total": 51.0,
+   "paid": "no"
+  },
+  {
+   "order": "A11",
+   "date": "2026-03-12",
+   "customer": {
+    "id": "C2",
+    "tier": "silver"
+   },
+   "total": 54.1,
+   "paid": "yes"
+  },
+  {
+   "order": "A12",
+   "date": "2026-03-13",
+   "customer": {
+    "id": "C3",
+    "tier": "gold"
+   },
+   "total": 57.2,
+   "paid": "yes"
+  },
+  {
+   "order": "A13",
+   "date": "2026-03-14",
+   "customer": {
+    "id": "C4",
+    "tier": "silver"
+   },
+   "total": 60.3,
+   "paid": "yes"
+  },
+  {
+   "order": "A14",
+   "date": "2026-03-15",
+   "customer": {
+    "id": "C5",
+    "tier": "gold"
+   },
+   "total": 63.4,
+   "paid": "yes"
+  },
+  {
+   "order": "A15",
+   "date": "2026-03-16",
+   "customer": {
+    "id": "C6",
+    "tier": "silver"
+   },
+   "total": 66.5,
+   "paid": "no"
+  },
+  {
+   "order": "A16",
+   "date": "2026-03-17",
+   "customer": {
+    "id": "C7",
+    "tier": "gold"
+   },
+   "total": 69.6,
+   "paid": "yes"
+  },
+  {
+   "order": "A17",
+   "date": "2026-03-18",
+   "customer": {
+    "id": "C8",
+    "tier": "silver"
+   },
+   "total": 72.7,
+   "paid": "yes"
+  },
+  {
+   "order": "A18",
+   "date": "2026-03-19",
+   "customer": {
+    "id": "C0",
+    "tier": "gold"
+   },
+   "total": 75.8,
+   "paid": "yes"
+  },
+  {
+   "order": "A19",
+   "date": "2026-03-20",
+   "customer": {
+    "id": "C1",
+    "tier": "silver"
+   },
+   "total": 78.9,
+   "paid": "yes"
+  },
+  {
+   "order": "A20",
+   "date": "2026-03-21",
+   "customer": {
+    "id": "C2",
+    "tier": "gold"
+   },
+   "total": 82.0,
+   "paid": "no"
+  },
+  {
+   "order": "A21",
+   "date": "2026-03-22",
+   "customer": {
+    "id": "C3",
+    "tier": "silver"
+   },
+   "total": 85.1,
+   "paid": "yes"
+  },
+  {
+   "order": "A22",
+   "date": "2026-03-23",
+   "customer": {
+    "id": "C4",
+    "tier": "gold"
+   },
+   "total": 88.2,
+   "paid": "yes"
+  },
+  {
+   "order": "A23",
+   "date": "2026-03-24",
+   "customer": {
+    "id": "C5",
+    "tier": "silver"
+   },
+   "total": 91.3,
+   "paid": "yes"
+  },
+  {
+   "order": "A24",
+   "date": "2026-03-25",
+   "customer": {
+    "id": "C6",
+    "tier": "gold"
+   },
+   "total": 94.4,
+   "paid": "yes"
+  },
+  {
+   "order": "A25",
+   "date": "2026-03-26",
+   "customer": {
+    "id": "C7",
+    "tier": "silver"
+   },
+   "total": 97.5,
+   "paid": "no"
+  },
+  {
+   "order": "A26",
+   "date": "2026-03-27",
+   "customer": {
+    "id": "C8",
+    "tier": "gold"
+   },
+   "total": 100.6,
+   "paid": "yes"
+  },
+  {
+   "order": "A27",
+   "date": "2026-03-28",
+   "customer": {
+    "id": "C0",
+    "tier": "silver"
+   },
+   "total": 103.7,
+   "paid": "yes"
+  },
+  {
+   "order": "A28",
+   "date": "2026-03-01",
+   "customer": {
+    "id": "C1",
+    "tier": "gold"
+   },
+   "total": 106.8,
+   "paid": "yes"
+  },
+  {
+   "order": "A29",
+   "date": "2026-03-02",
+   "customer": {
+    "id": "C2",
+    "tier": "silver"
+   },
+   "total": 109.9,
+   "paid": "yes"
+  },
+  {
+   "order": "A30",
+   "date": "2026-03-03",
+   "customer": {
+    "id": "C3",
+    "tier": "gold"
+   },
+   "total": 113.0,
+   "paid": "no"
+  },
+  {
+   "order": "A31",
+   "date": "2026-03-04",
+   "customer": {
+    "id": "C4",
+    "tier": "silver"
+   },
+   "total": 116.1,
+   "paid": "yes"
+  },
+  {
+   "order": "A32",
+   "date": "2026-03-05",
+   "customer": {
+    "id": "C5",
+    "tier": "gold"
+   },
+   "total": 119.2,
+   "paid": "yes"
+  },
+  {
+   "order": "A33",
+   "date": "2026-03-06",
+   "customer": {
+    "id": "C6",
+    "tier": "silver"
+   },
+   "total": 122.3,
+   "paid": "yes"
+  },
+  {
+   "order": "A34",
+   "date": "2026-03-07",
+   "customer": {
+    "id": "C7",
+    "tier": "gold"
+   },
+   "total": 125.4,
+   "paid": "yes"
+  },
+  {
+   "order": "A35",
+   "date": "2026-03-08",
+   "customer": {
+    "id": "C8",
+    "tier": "silver"
+   },
+   "total": 128.5,
+   "paid": "no"
+  },
+  {
+   "order": "A36",
+   "date": "2026-03-09",
+   "customer": {
+    "id": "C0",
+    "tier": "gold"
+   },
+   "total": 131.6,
+   "paid": "yes"
+  },
+  {
+   "order": "A37",
+   "date": "2026-03-10",
+   "customer": {
+    "id": "C1",
+    "tier": "silver"
+   },
+   "total": 134.7,
+   "paid": "yes"
+  },
+  {
+   "order": "A38",
+   "date": "2026-03-11",
+   "customer": {
+    "id": "C2",
+    "tier": "gold"
+   },
+   "total": 137.8,
+   "paid": "yes"
+  },
+  {
+   "order": "A39",
+   "date": "2026-03-12",
+   "customer": {
+    "id": "C3",
+    "tier": "silver"
+   },
+   "total": 140.9,
+   "paid": "yes"
+  },
+  {
+   "order": "A40",
+   "date": "2026-03-13",
+   "customer": {
+    "id": "C4",
+    "tier": "gold"
+   },
+   "total": 144.0,
+   "paid": "no"
+  },
+  {
+   "order": "A41",
+   "date": "2026-03-14",
+   "customer": {
+    "id": "C5",
+    "tier": "silver"
+   },
+   "total": 147.1,
+   "paid": "yes"
+  },
+  {
+   "order": "A42",
+   "date": "2026-03-15",
+   "customer": {
+    "id": "C6",
+    "tier": "gold"
+   },
+   "total": 150.2,
+   "paid": "yes"
+  },
+  {
+   "order": "A43",
+   "date": "2026-03-16",
+   "customer": {
+    "id": "C7",
+    "tier": "silver"
+   },
+   "total": 153.3,
+   "paid": "yes"
+  },
+  {
+   "order": "A44",
+   "date": "2026-03-17",
+   "customer": {
+    "id": "C8",
+    "tier": "gold"
+   },
+   "total": 156.4,
+   "paid": "yes"
+  },
+  {
+   "order": "A45",
+   "date": "2026-03-18",
+   "customer": {
+    "id": "C0",
+    "tier": "silver"
+   },
+   "total": 159.5,
+   "paid": "no"
+  },
+  {
+   "order": "A46",
+   "date": "2026-03-19",
+   "customer": {
+    "id": "C1",
+    "tier": "gold"
+   },
+   "total": 162.6,
+   "paid": "yes"
+  },
+  {
+   "order": "A47",
+   "date": "2026-03-20",
+   "customer": {
+    "id": "C2",
+    "tier": "silver"
+   },
+   "total": 165.7,
+   "paid": "yes"
+  },
+  {
+   "order": "A48",
+   "date": "2026-03-21",
+   "customer": {
+    "id": "C3",
+    "tier": "gold"
+   },
+   "total": 168.8,
+   "paid": "yes"
+  },
+  {
+   "order": "A49",
+   "date": "2026-03-22",
+   "customer": {
+    "id": "C4",
+    "tier": "silver"
+   },
+   "total": 171.9,
+   "paid": "yes"
+  },
+  {
+   "order": "A50",
+   "date": "2026-03-23",
+   "customer": {
+    "id": "C5",
+    "tier": "gold"
+   },
+   "total": 175.0,
+   "paid": "no"
+  },
+  {
+   "order": "A51",
+   "date": "2026-03-24",
+   "customer": {
+    "id": "C6",
+    "tier": "silver"
+   },
+   "total": 178.1,
+   "paid": "yes"
+  },
+  {
+   "order": "A52",
+   "date": "2026-03-25",
+   "customer": {
+    "id": "C7",
+    "tier": "gold"
+   },
+   "total": 181.2,
+   "paid": "yes"
+  },
+  {
+   "order": "A53",
+   "date": "2026-03-26",
+   "customer": {
+    "id": "C8",
+    "tier": "silver"
+   },
+   "total": 184.3,
+   "paid": "yes"
+  },
+  {
+   "order": "A54",
+   "date": "2026-03-27",
+   "customer": {
+    "id": "C0",
+    "tier": "gold"
+   },
+   "total": 187.4,
+   "paid": "yes"
+  },
+  {
+   "order": "A55",
+   "date": "2026-03-28",
+   "customer": {
+    "id": "C1",
+    "tier": "silver"
+   },
+   "total": 190.5,
+   "paid": "no"
+  },
+  {
+   "order": "A56",
+   "date": "2026-03-01",
+   "customer": {
+    "id": "C2",
+    "tier": "gold"
+   },
+   "total": 193.6,
+   "paid": "yes"
+  },
+  {
+   "order": "A57",
+   "date": "2026-03-02",
+   "customer": {
+    "id": "C3",
+    "tier": "silver"
+   },
+   "total": 196.7,
+   "paid": "yes"
+  },
+  {
+   "order": "A58",
+   "date": "2026-03-03",
+   "customer": {
+    "id": "C4",
+    "tier": "gold"
+   },
+   "total": 199.8,
+   "paid": "yes"
+  },
+  {
+   "order": "A59",
+   "date": "2026-03-04",
+   "customer": {
+    "id": "C5",
+    "tier": "silver"
+   },
+   "total": 202.9,
+   "paid": "yes"
+  },
+  {
+   "order": "A60",
+   "date": "2026-03-05",
+   "customer": {
+    "id": "C6",
+    "tier": "gold"
+   },
+   "total": 206.0,
+   "paid": "no"
+  },
+  {
+   "order": "A61",
+   "date": "2026-03-06",
+   "customer": {
+    "id": "C7",
+    "tier": "silver"
+   },
+   "total": 209.1,
+   "paid": "yes"
+  },
+  {
+   "order": "A62",
+   "date": "2026-03-07",
+   "customer": {
+    "id": "C8",
+    "tier": "gold"
+   },
+   "total": 212.2,
+   "paid": "yes"
+  },
+  {
+   "order": "A63",
+   "date": "2026-03-08",
+   "customer": {
+    "id": "C0",
+    "tier": "silver"
+   },
+   "total": 215.3,
+   "paid": "yes"
+  },
+  {
+   "order": "A64",
+   "date": "2026-03-09",
+   "customer": {
+    "id": "C1",
+    "tier": "gold"
+   },
+   "total": 218.4,
+   "paid": "yes"
+  },
+  {
+   "order": "A65",
+   "date": "2026-03-10",
+   "customer": {
+    "id": "C2",
+    "tier": "silver"
+   },
+   "total": 221.5,
+   "paid": "no"
+  },
+  {
+   "order": "A66",
+   "date": "2026-03-11",
+   "customer": {
+    "id": "C3",
+    "tier": "gold"
+   },
+   "total": 224.6,
+   "paid": "yes"
+  },
+  {
+   "order": "A67",
+   "date": "2026-03-12",
+   "customer": {
+    "id": "C4",
+    "tier": "silver"
+   },
+   "total": 227.7,
+   "paid": "yes"
+  },
+  {
+   "order": "A68",
+   "date": "2026-03-13",
+   "customer": {
+    "id": "C5",
+    "tier": "gold"
+   },
+   "total": 230.8,
+   "paid": "yes"
+  },
+  {
+   "order": "A69",
+   "date": "2026-03-14",
+   "customer": {
+    "id": "C6",
+    "tier": "silver"
+   },
+   "total": 233.9,
+   "paid": "yes"
+  },
+  {
+   "order": "A70",
+   "date": "2026-03-15",
+   "customer": {
+    "id": "C7",
+    "tier": "gold"
+   },
+   "total": 237.0,
+   "paid": "no"
+  },
+  {
+   "order": "A71",
+   "date": "2026-03-16",
+   "customer": {
+    "id": "C8",
+    "tier": "silver"
+   },
+   "total": 240.1,
+   "paid": "yes"
+  },
+  {
+   "order": "A72",
+   "date": "2026-03-17",
+   "customer": {
+    "id": "C0",
+    "tier": "gold"
+   },
+   "total": 243.2,
+   "paid": "yes"
+  },
+  {
+   "order": "A73",
+   "date": "2026-03-18",
+   "customer": {
+    "id": "C1",
+    "tier": "silver"
+   },
+   "total": 246.3,
+   "paid": "yes"
+  },
+  {
+   "order": "A74",
+   "date": "2026-03-19",
+   "customer": {
+    "id": "C2",
+    "tier": "gold"
+   },
+   "total": 249.4,
+   "paid": "yes"
+  },
+  {
+   "order": "A75",
+   "date": "2026-03-20",
+   "customer": {
+    "id": "C3",
+    "tier": "silver"
+   },
+   "total": 252.5,
+   "paid": "no"
+  },
+  {
+   "order": "A76",
+   "date": "2026-03-21",
+   "customer": {
+    "id": "C4",
+    "tier": "gold"
+   },
+   "total": 255.6,
+   "paid": "yes"
+  },
+  {
+   "order": "A77",
+   "date": "2026-03-22",
+   "customer": {
+    "id": "C5",
+    "tier": "silver"
+   },
+   "total": 258.7,
+   "paid": "yes"
+  },
+  {
+   "order": "A78",
+   "date": "2026-03-23",
+   "customer": {
+    "id": "C6",
+    "tier": "gold"
+   },
+   "total": 261.8,
+   "paid": "yes"
+  },
+  {
+   "order": "A79",
+   "date": "2026-03-24",
+   "customer": {
+    "id": "C7",
+    "tier": "silver"
+   },
+   "total": 264.9,
+   "paid": "yes"
+  }
+ ]
+}

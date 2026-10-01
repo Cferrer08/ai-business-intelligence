@@ -1,5 +1,8 @@
 // Sidebar sections and the phase in which each becomes functional.
 // Sections without a page yet render an honest "not built yet" screen instead of mock data.
+/** Highest phase that is built. Sections from later phases show an honest placeholder. */
+export const CURRENT_PHASE = 2;
+
 export interface NavItem {
   href: string;
   label: string;
@@ -21,4 +24,4 @@ export const NAV: NavItem[] = [
   { href: "/settings", label: "Settings", phase: 1, summary: "Workspace name and members." },
 ];
 
-export const UPCOMING = Object.fromEntries(NAV.filter((n) => n.phase > 1).map((n) => [n.href.slice(1), n]));
+export const UPCOMING = Object.fromEntries(NAV.filter((n) => n.phase > CURRENT_PHASE).map((n) => [n.href.slice(1), n]));

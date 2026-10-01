@@ -2,7 +2,7 @@ import "server-only";
 import { redirect } from "next/navigation";
 import { and, asc, db, eq, isNull, workspaceMembers, workspaces as workspacesTable } from "@insight/database";
 import type { WorkspaceRole, WorkspaceSummary } from "@insight/types";
-import { requireSession, type CurrentSession } from "@/lib/auth/session";
+import { getSession, requireSession, type CurrentSession } from "@/lib/auth/session";
 
 import { roleAtLeast } from "@/lib/roles";
 
@@ -49,4 +49,24 @@ export async function assertMembership(userId: string, workspaceId: string, mini
     .limit(1);
   if (!member || !roleAtLeast(member.role, minimumRole)) return null;
   return member;
+}
+
+/**
+ * Same resolution as requireWorkspace() for API route handlers, which must answer with
+ * a status code instead of redirecting. Returns null when signed out, without a workspace,
+ * or below the required role; the caller turns that into 401/403.
+ */
+export async function getApiWorkspace(minimumRole: WorkspaceRole = "VIEWER"): Promise<
+  | { ok: true; ctx: WorkspaceContext }
+  | { ok: false; status: 401 | 403; message: string }
+> {
+  const session = await getSession();
+  if (!session) return { ok: false, status: 401, message: "Sign in to continue." };
+  const workspaces = await listWorkspaces(session.user.id);
+  const workspace = workspaces.find((w) => w.id === session.activeWorkspaceId) ?? workspaces[0];
+  if (!workspace) return { ok: false, status: 403, message: "Create a workspace first." };
+  if (!roleAtLeast(workspace.role, minimumRole)) {
+    return { ok: false, status: 403, message: "Your role in this workspace doesn't allow this." };
+  }
+  return { ok: true, ctx: { session, workspace, workspaces } };
 }

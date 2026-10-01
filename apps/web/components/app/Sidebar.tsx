@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NAV } from "./nav";
+import { CURRENT_PHASE, NAV } from "./nav";
 
 export function SidebarNav() {
   const pathname = usePathname();
@@ -10,7 +10,7 @@ export function SidebarNav() {
     <nav aria-label="Main" className="flex flex-col gap-px">
       {NAV.map((item) => {
         const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-        const ready = item.phase === 1;
+        const ready = item.phase <= CURRENT_PHASE;
         return (
           <Link
             key={item.href}

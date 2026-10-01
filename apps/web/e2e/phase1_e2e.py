@@ -1,15 +1,26 @@
 """Phase 1 end-to-end suite: auth, onboarding, workspaces, sign-out, stale sessions, tenant isolation.
 
-Run against a production build with an EMPTY database (it truncates nothing itself):
-    pip install playwright && playwright install chromium
-    E2E_BASE_URL=http://localhost:3000 python apps/web/e2e/phase1_e2e.py
+Run against a production build with an EMPTY database. PowerShell:
+    pip install playwright "psycopg[binary]"
+    playwright install chromium
+    $env:E2E_BASE_URL = "http://localhost:3000"
+    python apps/web/e2e/phase1_e2e.py
+
+DATABASE_URL defaults to the local docker-compose database.
 """
-import os, re, subprocess
+import os
+import psycopg
 from playwright.sync_api import sync_playwright, expect
 
 B=os.environ.get("E2E_BASE_URL","http://localhost:3000")
+DB_URL=os.environ.get("DATABASE_URL","postgresql://insight:insight@127.0.0.1:5432/insight_ai")
 def psql(q):
-    return subprocess.run(["psql", os.environ.get("DATABASE_URL","postgresql://insight:insight@localhost:5432/insight_ai"), "-tAc", q],capture_output=True,text=True).stdout.strip()
+    """Run one statement; return rows as 'a|b' lines, like psql -tA."""
+    with psycopg.connect(DB_URL, autocommit=True) as conn:
+        cur = conn.execute(q)
+        if cur.description is None:
+            return ""
+        return "\n".join("|".join("t" if v is True else "f" if v is False else str(v) for v in row) for row in cur.fetchall())
 
 os.makedirs(os.environ.get("E2E_SHOTS","e2e-shots"), exist_ok=True)
 with sync_playwright() as p:
@@ -32,7 +43,7 @@ with sync_playwright() as p:
     a.screenshot(path=os.environ.get("E2E_SHOTS","e2e-shots")+"/4-dashboard.png", full_page=True)
     # stored email normalized; password hashed
     assert psql("select email from users") == "ana@example.com"
-    assert psql("select password_hash like '\\$2a\\$12\\$%' from users") == "t"
+    assert psql("select password_hash like '$2a$12$%' from users") == "t"
     assert len(psql("select token_hash from sessions limit 1")) == 64
     # rename
     a.goto(B+"/settings"); a.fill("#name","Northside Retail Group"); a.get_by_role("button", name="Save name").click()
