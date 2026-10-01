@@ -3,10 +3,16 @@
 Upload business data, ask questions in plain English, and get answers calculated by a Python
 data engine and explained by an AI analyst.
 
-The product is built in phases. **This repository is at the end of Phase 2 (Data engine).**
+The product is built in phases. **This repository is at the end of Phase 3 (AI analyst).**
 See [`docs/PHASES.md`](docs/PHASES.md) for what is done and what comes next.
 
 ## What works today
+
+**Phase 3: AI analyst**
+- Ask questions in plain English about a dataset; follow-up questions keep context
+- The model plans the analysis, the Python engine calculates it, the model explains it
+- Every number shown is calculated by the engine and highlighted; suggestions are labelled
+- Conversations are saved; every model call is logged with tokens and estimated cost
 
 **Phase 2: data engine**
 - Upload CSV, Excel (.xlsx), JSON or Parquet files up to 50 MB
@@ -49,6 +55,10 @@ npm run db:migrate
 npm run dev        # http://localhost:3000
 ```
 
+For the AI Analyst, add your OpenAI key to `apps/web/.env.local` (`OPENAI_API_KEY=sk-...`),
+check `OPENAI_MODEL` and its two price lines, and restart `npm run dev`. Without a key,
+everything else works and the AI Analyst page explains what's missing.
+
 `apps/web/.env.local` must contain `FASTAPI_URL` and an `ENGINE_API_KEY` that matches the
 engine container (the defaults in `.env.example` match `docker-compose.yml`). If you copied
 `.env.example` before Phase 2, add those two lines.
@@ -69,6 +79,8 @@ be set in the shell. A `DATABASE_URL` already set in the shell takes precedence.
   should report `"database":"ok"`.
 - **Check the data engine**: open http://127.0.0.1:8000/health; it should report
   `"status":"ok"`. Engine logs: `docker compose -f infrastructure/docker-compose.yml logs data-engine`.
+- **AI Analyst says the API key was rejected**: check `OPENAI_API_KEY` and that billing is
+  enabled on your OpenAI account. "Busy or usage limit" means OpenAI rate-limited the key.
 - **Uploads say the data engine isn't reachable**: the engine container isn't running, or
   `FASTAPI_URL` is wrong. If the engine log shows 401 responses, `ENGINE_API_KEY` differs
   between `apps/web/.env.local` and the container.
@@ -104,10 +116,15 @@ pip install pandas openpyxl
 python apps/web/e2e/phase2_e2e.py
 ```
 
+Phase 3's suite uses a stand-in model so it's free and repeatable. Start the stand-in in a
+third window with `python apps/web/e2e/fake_openai.py 8765`, run the app with
+`OPENAI_API_KEY=test-openai-key` and `OPENAI_BASE_URL=http://127.0.0.1:8765/v1`, then run
+`python apps/web/e2e/phase3_e2e.py`. To score the real model, see `docs/AI_ARCHITECTURE.md`.
+
 To empty the database before a rerun:
 
 ```powershell
-docker compose -f infrastructure/docker-compose.yml exec postgres psql -U insight -d insight_ai -c "truncate users, workspaces, workspace_members, sessions, audit_logs, datasets, dataset_columns, dataset_profiles cascade"
+docker compose -f infrastructure/docker-compose.yml exec postgres psql -U insight -d insight_ai -c "truncate users, workspaces, workspace_members, sessions, audit_logs, datasets, dataset_columns, dataset_profiles, conversations, messages, analysis_requests, analysis_results, ai_requests cascade"
 ```
 
 Phase 1 covers sign-up validation, onboarding, rename, sign-out, revoked sessions,
@@ -120,5 +137,6 @@ workspace can neither open nor delete the dataset. Screenshots go to `e2e-shots/
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/DATA_ENGINE.md`](docs/DATA_ENGINE.md)
+- [`docs/AI_ARCHITECTURE.md`](docs/AI_ARCHITECTURE.md)
 - [`docs/SECURITY.md`](docs/SECURITY.md)
 - [`docs/PHASES.md`](docs/PHASES.md)

@@ -30,3 +30,13 @@ export function formatDate(d: Date | string, withTime = false): string {
     ? { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }
     : { month: "short", day: "numeric", year: "numeric" });
 }
+
+/** Matches the data engine's fact formatting exactly, so a value reads the same in the
+ * explanation and in the table. */
+export function formatMetric(n: unknown, format: string): string {
+  if (typeof n !== "number" || !Number.isFinite(n)) return "—";
+  if (format === "percent") return `${n.toFixed(1)}%`;
+  if (Math.abs(n) >= 10_000) return int.format(Math.round(n));
+  if (format === "money") return n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return dec.format(n);
+}

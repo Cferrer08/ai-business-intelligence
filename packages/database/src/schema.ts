@@ -2,7 +2,7 @@
 // Dataset / analysis / billing tables arrive as separate migrations in later phases,
 // each carrying workspace_id so tenant isolation is enforced at the data layer.
 import { sql } from "drizzle-orm";
-import { bigint, boolean, char, check, index, integer, jsonb, pgEnum, pgTable, smallint, timestamp, uniqueIndex, uuid, varchar, text } from "drizzle-orm/pg-core";
+import { bigint, boolean, char, check, index, integer, jsonb, numeric, pgEnum, pgTable, smallint, timestamp, uniqueIndex, uuid, varchar, text } from "drizzle-orm/pg-core";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true, precision: 3 });
 
@@ -137,6 +137,85 @@ export const datasetProfiles = pgTable("dataset_profiles", {
   durationMs: integer("duration_ms").notNull(),
   createdAt: ts("created_at").notNull().defaultNow(),
 }, (t) => [uniqueIndex("dataset_profiles_dataset_key").on(t.datasetId)]);
+
+// ---------------------------------------------------------------------------
+// Phase 3: AI analyst. A conversation is tied to one dataset. Each question creates an
+// analysis request (the validated plan) and, on success, a result (engine output plus the
+// explanation). Every model call is recorded in ai_requests for usage and cost tracking.
+// ---------------------------------------------------------------------------
+
+export const messageRole = pgEnum("message_role", ["user", "assistant"]);
+export const analysisStatus = pgEnum("analysis_status", ["running", "succeeded", "failed", "clarification", "unsupported"]);
+
+export const conversations = pgTable("conversations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  datasetId: uuid("dataset_id").notNull().references(() => datasets.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  title: varchar("title", { length: 160 }).notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow().$onUpdate(() => new Date()),
+  deletedAt: ts("deleted_at"),
+}, (t) => [index("conversations_workspace_updated_idx").on(t.workspaceId, t.updatedAt)]);
+
+export const analysisRequests = pgTable("analysis_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  datasetId: uuid("dataset_id").notNull().references(() => datasets.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  question: varchar("question", { length: 1000 }).notNull(),
+  plan: jsonb("plan"),
+  status: analysisStatus("status").notNull().default("running"),
+  errorCode: varchar("error_code", { length: 60 }),
+  errorMessage: varchar("error_message", { length: 500 }),
+  durationMs: integer("duration_ms"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("analysis_requests_workspace_created_idx").on(t.workspaceId, t.createdAt),
+  index("analysis_requests_conversation_idx").on(t.conversationId, t.createdAt),
+]);
+
+export const analysisResults = pgTable("analysis_results", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  requestId: uuid("request_id").notNull().references(() => analysisRequests.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  result: jsonb("result").notNull(),
+  insight: jsonb("insight").notNull(),
+  // "model" when the explanation passed validation, "template" when the fallback was used.
+  insightSource: varchar("insight_source", { length: 20 }).notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+}, (t) => [uniqueIndex("analysis_results_request_key").on(t.requestId)]);
+
+export const messages = pgTable("messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  conversationId: uuid("conversation_id").notNull().references(() => conversations.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  role: messageRole("role").notNull(),
+  content: text("content").notNull(),
+  analysisRequestId: uuid("analysis_request_id").references(() => analysisRequests.id, { onDelete: "set null" }),
+  createdAt: ts("created_at").notNull().defaultNow(),
+}, (t) => [index("messages_conversation_created_idx").on(t.conversationId, t.createdAt)]);
+
+export const aiRequests = pgTable("ai_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  analysisRequestId: uuid("analysis_request_id").references(() => analysisRequests.id, { onDelete: "set null" }),
+  purpose: varchar("purpose", { length: 30 }).notNull(), // plan | plan_repair | interpret | interpret_retry
+  model: varchar("model", { length: 80 }).notNull(),
+  inputTokens: integer("input_tokens").notNull().default(0),
+  outputTokens: integer("output_tokens").notNull().default(0),
+  totalTokens: integer("total_tokens").notNull().default(0),
+  estimatedCostUsd: numeric("estimated_cost_usd", { precision: 12, scale: 6 }).notNull().default("0"),
+  durationMs: integer("duration_ms").notNull(),
+  succeeded: boolean("succeeded").notNull(),
+  errorCode: varchar("error_code", { length: 60 }),
+  createdAt: ts("created_at").notNull().defaultNow(),
+}, (t) => [
+  index("ai_requests_workspace_created_idx").on(t.workspaceId, t.createdAt),
+  index("ai_requests_user_created_idx").on(t.userId, t.createdAt),
+]);
 
 export type Dataset = typeof datasets.$inferSelect;
 export type DatasetColumn = typeof datasetColumns.$inferSelect;

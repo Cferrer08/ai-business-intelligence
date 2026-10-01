@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { and, auditLogs, count, db, desc, eq, inArray, users, workspaceMembers } from "@insight/database";
+import { analysisRequests, and, auditLogs, count, db, desc, eq, inArray, users, workspaceMembers } from "@insight/database";
 import { PageHeader } from "@/components/app/PageHeader";
 import { requireWorkspace } from "@/lib/server/workspace";
 import { countDatasets } from "@/lib/server/datasets";
@@ -24,9 +24,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const { workspace, session } = await requireWorkspace();
   const { denied } = await searchParams;
 
-  const [[{ memberCount }], datasetCount, activity] = await Promise.all([
+  const [[{ memberCount }], datasetCount, [{ analysisCount }], activity] = await Promise.all([
     db.select({ memberCount: count() }).from(workspaceMembers).where(eq(workspaceMembers.workspaceId, workspace.id)),
     countDatasets(workspace.id),
+    db.select({ analysisCount: count() }).from(analysisRequests).where(and(eq(analysisRequests.workspaceId, workspace.id), eq(analysisRequests.status, "succeeded"))),
     db
       .select({ id: auditLogs.id, action: auditLogs.action, createdAt: auditLogs.createdAt, user: { id: users.id, name: users.name } })
       .from(auditLogs)
@@ -40,7 +41,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     { label: "Create your account", done: true },
     { label: "Set up a workspace", done: true },
     { label: "Upload your first dataset", done: datasetCount > 0, href: "/data" },
-    { label: "Ask the analyst a question", done: false, note: "The AI analyst arrives in phase 3." },
+    { label: "Ask the analyst a question", done: analysisCount > 0, href: "/analyst" },
   ];
 
   return (
@@ -67,7 +68,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             </dl>
             <p className="border-t border-line px-5 py-3 text-sm text-ink-soft">
               {datasetCount > 0
-                ? "The AI analyst (phase 3) calculates these from your datasets with date and revenue columns."
+                ? "This overview becomes a live dashboard in phase 4. Until then, ask the AI Analyst: \u201cSummarize this dataset\u201d."
                 : "These are calculated from your own data once you upload a dataset with dates and revenue."}
             </p>
           </div>

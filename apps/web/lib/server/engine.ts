@@ -1,5 +1,6 @@
 import "server-only";
 import type { EngineIngestResponse } from "@insight/types";
+import { AnalysisExecutionError, type EngineResult } from "@insight/ai";
 import { logger } from "./logger";
 
 const BASE_URL = (process.env.FASTAPI_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
@@ -71,4 +72,32 @@ export async function ingestDataset(workspaceId: string, datasetId: string, file
 export async function deleteDatasetFiles(workspaceId: string, datasetId: string): Promise<void> {
   const res = await call(`/v1/workspaces/${workspaceId}/datasets/${datasetId}`, { method: "DELETE" });
   if (!res.ok) throw await rejection(res);
+}
+
+export interface ColumnRoleInput {
+  name: string;
+  logical_type: string;
+  role: string;
+  concept: string | null;
+}
+
+/** Runs a validated analysis spec. Engine-explained problems become AnalysisExecutionError
+ * (so the analyst can repair the plan); anything else is EngineUnavailable/EngineRejected. */
+export async function analyzeDataset(workspaceId: string, datasetId: string, spec: Record<string, unknown>, columns: ColumnRoleInput[]): Promise<EngineResult> {
+  const res = await call(`/v1/workspaces/${workspaceId}/datasets/${datasetId}/analyze`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ spec, columns }),
+    timeoutMs: 60_000,
+  });
+  if (res.ok) return (await res.json()) as EngineResult;
+  if (res.status === 422) {
+    const body = (await res.json().catch(() => ({}))) as { detail?: unknown };
+    const d = body.detail as { code?: string; message?: string } | unknown[] | undefined;
+    if (d && !Array.isArray(d) && d.code && d.message) throw new AnalysisExecutionError(d.code, d.message);
+    // Pydantic rejected the spec shape: our validation should have caught it, so log it.
+    logger.error("engine.spec_rejected", { detail: JSON.stringify(d).slice(0, 500) });
+    throw new AnalysisExecutionError("invalid_spec", "The analysis plan wasn't accepted by the data engine. Try rephrasing the question.");
+  }
+  throw await rejection(res);
 }

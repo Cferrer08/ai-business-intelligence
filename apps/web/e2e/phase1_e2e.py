@@ -50,7 +50,7 @@ with sync_playwright() as p:
     expect(a.get_by_role("status")).to_have_text("Saved")
     a.screenshot(path=os.environ.get("E2E_SHOTS","e2e-shots")+"/5-settings.png", full_page=True)
     # upcoming section is honest
-    a.goto(B+"/analyst"); expect(a.get_by_text("Not built yet: arrives in phase 3")).to_be_visible()
+    a.goto(B+"/reports"); expect(a.get_by_text("Not built yet: arrives in phase 7")).to_be_visible()
     a.goto(B+"/nonsense"); expect(a.get_by_text("Page not found")).to_be_visible()
     wsA=psql("select id from workspaces where name='Northside Retail Group'")
     # logout -> session row deleted

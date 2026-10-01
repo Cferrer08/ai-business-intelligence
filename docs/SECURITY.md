@@ -47,7 +47,21 @@ are logged and never block the user's request.
   workspace's dataset id finds nothing (both covered by tests).
 - Errors shown to users come from a fixed set of safe messages; internals are logged.
 
+## AI (Phase 3)
+- The model never runs code: it returns a plan in a strict schema; the engine executes
+  only pre-written operations. Plans are validated against the dataset before running.
+- Uploaded content (column names, values) is passed as labelled data and the model is told
+  not to follow instructions in it; even if it did, it can only produce a valid plan or
+  text whose numbers must reference engine facts.
+- The model has no tools with side effects and no access to other workspaces, API keys,
+  environment variables or files. Its prompt contains only the current dataset's
+  description and this conversation's earlier turns.
+- Conversations, analyses and usage rows all carry `workspace_id`; the chat endpoint
+  resolves the conversation and dataset inside the caller's workspace (tested with forged
+  ids). Viewers can read analyses but not run them.
+- `OPENAI_API_KEY` stays on the server; the browser only talks to `/api/analyst/chat`.
+- 30 questions per user per 10 minutes (in-process, see rate-limit note above).
+
 ## Not yet in place (scheduled)
-Email verification and password reset, CSRF review for API routes once they accept
-mutations (server actions already enforce same-origin), Content-Security-Policy, AI prompt-injection defenses (Phase 3), distributed rate
-limiting and monitoring (Phase 10).
+Email verification and password reset, CSRF review for API routes, Content-Security-Policy,
+distributed rate limiting and monitoring (Phase 10).

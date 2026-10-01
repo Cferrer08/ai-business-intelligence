@@ -13,13 +13,15 @@ insight-ai/
 │   ├── lib/server/           Tenancy guard, audit log, logger (server-only)
 │   └── e2e/                  Playwright end-to-end suite
 ├── services/data-engine/     Python FastAPI service: file validation, typing, profiling
+├── packages/ai/              AI analyst: plan schema, prompts, validation, grounding, eval
 ├── packages/database/        Drizzle schema, client, SQL migrations, migrator
 ├── packages/types/           Types shared with future AI and data-engine layers
 ├── infrastructure/           docker-compose for local Postgres
 └── docs/
 ```
 
-The AI layer (`ai/`) is created in Phase 3. See `DATA_ENGINE.md` for the engine.
+The spec's top-level `ai/` folder lives at `packages/ai` so it is an npm workspace package
+like the others. See `DATA_ENGINE.md` and `AI_ARCHITECTURE.md`.
 
 ## Request flow
 
@@ -46,7 +48,13 @@ The AI layer (`ai/`) is created in Phase 3. See `DATA_ENGINE.md` for the engine.
 | `dataset_columns` | One row per column: type, role, concept, missing/unique counts, stats. |
 | `dataset_profiles` | Full engine profile (JSON), read notes, engine version. |
 
-Later phases add tables (analyses, documents, usage, billing). Each carries
+| `conversations` | One per analysis thread, tied to a dataset. |
+| `messages` | User questions and assistant replies, linked to their analysis request. |
+| `analysis_requests` | Question, validated plan, status, error, duration. |
+| `analysis_results` | Engine result (tables + facts) and the explanation (with placeholders). |
+| `ai_requests` | Every model call: purpose, model, tokens, estimated cost, duration, outcome. |
+
+Later phases add tables (charts, reports, forecasts, documents, billing). Each carries
 `workspace_id`, and every query takes that id from `requireWorkspace()`, never from input.
 
 ## Why Drizzle

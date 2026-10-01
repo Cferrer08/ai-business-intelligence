@@ -15,6 +15,13 @@
       "when": 1790875047599,
       "tag": "0001_phase2_datasets",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790877688469,
+      "tag": "0002_phase3_analyst",
+      "breakpoints": true
     }
   ]
 }

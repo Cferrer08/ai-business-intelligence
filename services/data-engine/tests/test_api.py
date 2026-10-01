@@ -87,3 +87,19 @@ def test_delete_is_scoped_to_workspace(client):
 
 def test_health_needs_no_key(client):
     assert client.get("/health").json()["status"] == "ok"
+
+
+def test_analyze_endpoint(client):
+    ws, ds = uuid.uuid4(), uuid.uuid4()
+    assert upload(client, ws, ds, CSV).status_code == 200
+    body = {"spec": {"type": "aggregate", "metrics": [{"column": "revenue", "agg": "sum", "label": "Revenue"}], "dimensions": ["region"]},
+            "columns": [{"name": "revenue", "logical_type": "numeric", "role": "monetary", "concept": "revenue"}]}
+    r = client.post(f"/v1/workspaces/{ws}/datasets/{ds}/analyze", headers={"X-Engine-Key": KEY}, json=body)
+    assert r.status_code == 200, r.text
+    rows = {x["region"]: x["Revenue"] for x in r.json()["table"]["rows"]}
+    assert rows == {"North": 180.0, "South": 250.5}
+    # wrong workspace -> not found; bad spec -> 422; no key -> 401
+    assert client.post(f"/v1/workspaces/{uuid.uuid4()}/datasets/{ds}/analyze", headers={"X-Engine-Key": KEY}, json=body).status_code == 404
+    bad = {"spec": {"type": "aggregate", "metrics": []}, "columns": []}
+    assert client.post(f"/v1/workspaces/{ws}/datasets/{ds}/analyze", headers={"X-Engine-Key": KEY}, json=bad).status_code == 422
+    assert client.post(f"/v1/workspaces/{ws}/datasets/{ds}/analyze", json=body).status_code == 401

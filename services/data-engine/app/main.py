@@ -1,7 +1,8 @@
 """InsightAI data engine. Only the web app calls it, using a shared key.
 
-Phase 2 endpoints:
+Endpoints:
   POST   /v1/workspaces/{workspace_id}/datasets/{dataset_id}/ingest   validate, store, profile
+  POST   /v1/workspaces/{workspace_id}/datasets/{dataset_id}/analyze  run a validated analysis spec
   DELETE /v1/workspaces/{workspace_id}/datasets/{dataset_id}          remove stored files
   GET    /health
 """
@@ -13,6 +14,7 @@ import os
 import shutil
 import threading
 import time
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from uuid import UUID
 
@@ -23,6 +25,8 @@ from . import storage
 from .config import ENGINE_VERSION, load_settings
 from .errors import EngineError, LimitExceeded
 from .ingest import detect_format, read_dataset
+from .analysis.compute import analyze as run_analysis
+from .analysis.models import AnalyzeRequest
 from .profiling.profile import profile_dataframe
 from .schemas import DeleteResponse, HealthResponse, IngestResponse
 from .security import require_engine_key
@@ -116,9 +120,49 @@ def ingest(request: Request, workspace_id: UUID, dataset_id: UUID,
         file.file.close()
 
 
+_frames: "OrderedDict[tuple[str, str], object]" = OrderedDict()
+_frames_lock = threading.Lock()
+FRAME_CACHE_SIZE = 4
+
+
+def _load_frame(settings, workspace_id: UUID, dataset_id: UUID):
+    """Small LRU cache: follow-up questions on the same dataset skip re-reading the file."""
+    key = (str(workspace_id), str(dataset_id))
+    with _frames_lock:
+        if key in _frames:
+            _frames.move_to_end(key)
+            return _frames[key]
+    try:
+        df = storage.read_canonical(settings.data_dir, workspace_id, dataset_id)
+    except FileNotFoundError as exc:
+        raise EngineError("dataset_missing", "This dataset's file wasn't found. Upload it again.", 404) from exc
+    with _frames_lock:
+        _frames[key] = df
+        while len(_frames) > FRAME_CACHE_SIZE:
+            _frames.popitem(last=False)
+    return df
+
+
+def _forget_frame(workspace_id: UUID, dataset_id: UUID) -> None:
+    with _frames_lock:
+        _frames.pop((str(workspace_id), str(dataset_id)), None)
+
+
+@app.post("/v1/workspaces/{workspace_id}/datasets/{dataset_id}/analyze", dependencies=[Depends(require_engine_key)])
+def analyze(request: Request, workspace_id: UUID, dataset_id: UUID, body: AnalyzeRequest) -> dict:
+    started = time.perf_counter()
+    df = _load_frame(request.app.state.settings, workspace_id, dataset_id)
+    result = run_analysis(df, body.spec, body.columns)
+    result["duration_ms"] = int((time.perf_counter() - started) * 1000)
+    log(logging.INFO, "dataset.analyzed", workspace_id=workspace_id, dataset_id=dataset_id, type=body.spec.type,
+        rows=result.get("rows_considered"), ms=result["duration_ms"])
+    return result
+
+
 @app.delete("/v1/workspaces/{workspace_id}/datasets/{dataset_id}", response_model=DeleteResponse,
             dependencies=[Depends(require_engine_key)])
 def delete(request: Request, workspace_id: UUID, dataset_id: UUID) -> DeleteResponse:
+    _forget_frame(workspace_id, dataset_id)
     deleted = storage.delete_dataset(request.app.state.settings.data_dir, workspace_id, dataset_id)
     log(logging.INFO, "dataset.deleted", workspace_id=workspace_id, dataset_id=dataset_id, existed=deleted)
     return DeleteResponse(deleted=deleted)

@@ -8,7 +8,7 @@ const securityHeaders = [
 
 const nextConfig = {
   poweredByHeader: false,
-  transpilePackages: ["@insight/database", "@insight/types"],
+  transpilePackages: ["@insight/database", "@insight/types", "@insight/ai"],
   serverExternalPackages: ["pg", "bcryptjs"],
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];

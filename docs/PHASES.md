@@ -4,8 +4,8 @@
 | --- | --- | --- |
 | 1 | Foundation: app, database, auth, workspaces, dashboard | **Done, verified** |
 | 2 | Data engine: upload, storage, Pandas profiling, quality score | **Done, verified** |
-| 3 | AI analyst: planning, tool calling, conversation history | Next |
-| 4 | Visualization | Planned |
+| 3 | AI analyst: planning, tool calling, conversation history | **Done, verified with a stand-in model** |
+| 4 | Visualization | Next |
 | 5 | Anomalies, forecasting, correlation, segmentation | Planned |
 | 6 | RAG knowledge base (Pinecone) | Planned |
 | 7 | Reports and PDF export | Planned |
@@ -46,3 +46,23 @@
    penalised twice. Sparse columns now get one small, labelled penalty.
 4. Unique order numbers were summarised as "ORD-0000 (1%)". Mostly-unique columns now
    show examples instead of frequencies.
+
+## Phase 3 verification
+
+- Engine: 47 tests; every analysis result is checked against an independent pandas
+  calculation (contributions to a change sum to exactly 100%)
+- AI package: 17 tests with a scripted model: grounding, plan repair, engine-error repair,
+  template fallback, AI outages, clarifications
+- Web: 16 unit tests, type check, clean production build
+- `phase3_e2e.py` (real engine and PostgreSQL, stand-in model over HTTP): trend, follow-up
+  filter, period comparison with contributors, unsupported request, typo repair, rejected
+  invented number, saved history, usage rows, cross-workspace access refused. Phase 1 and
+  2 suites re-run: pass.
+- **Not verified here: the real OpenAI model.** Run `npm run eval -w @insight/ai` with your
+  key for plan accuracy, numerical accuracy and grounding rate.
+
+### Issues found and fixed during verification
+1. Headline and table rounded the same value differently (4,892 vs 4,892.5) and percents
+   differently (8.0% vs -8%). Engine facts and tables now share one formatting rule.
+2. A region falling more than the total showed "175% of the change" with no explanation.
+   The engine now adds a note when shares exceed 100%.
