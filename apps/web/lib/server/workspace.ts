@@ -1,6 +1,6 @@
 import "server-only";
 import { redirect } from "next/navigation";
-import { and, asc, db, eq, isNull, workspaceMembers, workspaces as workspacesTable } from "@insight/database";
+import { and, asc, db, eq, getSchemaStatus, isNull, workspaceMembers, workspaces as workspacesTable } from "@insight/database";
 import type { WorkspaceRole, WorkspaceSummary } from "@insight/types";
 import { getSession, requireSession, type CurrentSession } from "@/lib/auth/session";
 
@@ -58,8 +58,9 @@ export async function assertMembership(userId: string, workspaceId: string, mini
  */
 export async function getApiWorkspace(minimumRole: WorkspaceRole = "VIEWER"): Promise<
   | { ok: true; ctx: WorkspaceContext }
-  | { ok: false; status: 401 | 403; message: string }
+  | { ok: false; status: 401 | 403 | 503; message: string }
 > {
+  if (!(await getSchemaStatus()).ok) return { ok: false, status: 503, message: "The database needs updating. Run npm run db:migrate, then try again." };
   const session = await getSession();
   if (!session) return { ok: false, status: 401, message: "Sign in to continue." };
   const workspaces = await listWorkspaces(session.user.id);

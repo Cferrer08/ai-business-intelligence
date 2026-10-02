@@ -101,3 +101,23 @@ export async function analyzeDataset(workspaceId: string, datasetId: string, spe
   }
   throw await rejection(res);
 }
+
+export interface DashboardData {
+  columns: { time: string | null; value: string | null; orders: string | null; customers: string | null };
+  period: { current: string; baseline: string } | null;
+  kpis: { key: string; label: string; value: number | null; format: "money" | "number"; change_pct: number | null }[];
+  series: { month: string; value: number; orders: number; partial: boolean }[];
+  movers: { dimension: string; rows: { value: string; current: number; baseline: number; change: number; change_pct: number | null }[] }[];
+  notes: string[];
+}
+
+export async function dashboardData(workspaceId: string, datasetId: string, columns: ColumnRoleInput[]): Promise<DashboardData> {
+  const res = await call(`/v1/workspaces/${workspaceId}/datasets/${datasetId}/dashboard`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ columns }),
+    timeoutMs: 20_000,
+  });
+  if (!res.ok) throw await rejection(res);
+  return (await res.json()) as DashboardData;
+}

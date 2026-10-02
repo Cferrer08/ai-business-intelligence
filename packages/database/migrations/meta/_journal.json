@@ -22,6 +22,13 @@
       "when": 1790877688469,
       "tag": "0002_phase3_analyst",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790890776027,
+      "tag": "0003_phase4_charts",
+      "breakpoints": true
     }
   ]
 }

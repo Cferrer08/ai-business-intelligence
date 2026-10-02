@@ -87,6 +87,8 @@ All endpoints except `/health` require the `X-Engine-Key` header (shared secret)
 | Method | Path | Purpose |
 | --- | --- | --- |
 | POST | `/v1/workspaces/{ws}/datasets/{id}/ingest` | multipart `file` + `filename`; returns profile |
+| POST | `/v1/workspaces/{ws}/datasets/{id}/analyze` | run an analysis spec (Phase 3) |
+| POST | `/v1/workspaces/{ws}/datasets/{id}/dashboard` | dashboard KPIs, monthly series, movers (Phase 4) |
 | DELETE | `/v1/workspaces/{ws}/datasets/{id}` | delete stored files |
 | GET | `/health` | liveness |
 

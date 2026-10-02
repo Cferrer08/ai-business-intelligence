@@ -25,7 +25,7 @@ const PRICES = { input: Number(process.env.OPENAI_PRICE_INPUT_PER_1M ?? 0.4), ou
 
 type Expect = {
   action?: string; action_not?: string; type?: string; metric_column?: string; dimensions?: string[]; grain?: string;
-  filter_column?: string; period_kind?: string; ratio?: boolean; facts?: { label_contains: string; value: number }[];
+  filter_column?: string; period_kind?: string; ratio?: boolean; chart?: string; facts?: { label_contains: string; value: number }[];
 };
 type Case = { id: string; question: string; previous?: any; expect: Expect };
 
@@ -82,6 +82,7 @@ async function main() {
         if (e.filter_column && !p.filters.some((f) => f.column === e.filter_column)) problems.push("missing filter");
         if (e.period_kind && p.period?.kind !== e.period_kind) problems.push(`period ${p.period?.kind}`);
         if (e.ratio && !p.ratio) problems.push("no ratio");
+        if (e.chart && p.chart !== e.chart) problems.push(`chart ${p.chart}`);
         explained++;
         if (out.insightSource === "model") grounded++;
         for (const f of e.facts ?? []) {

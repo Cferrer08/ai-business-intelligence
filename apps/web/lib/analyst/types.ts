@@ -14,6 +14,8 @@ export interface TurnView {
   insight: Insight | null;
   rendered: RenderedInsight | null;
   insightSource: "model" | "template" | null;
+  resultId: string | null;
+  pinned: boolean;
   createdAt: string;
 }
 

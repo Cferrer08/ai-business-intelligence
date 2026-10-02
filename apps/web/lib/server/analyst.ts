@@ -1,5 +1,5 @@
 import "server-only";
-import { analysisRequests, analysisResults, and, asc, conversations, datasets, db, desc, eq, isNull } from "@insight/database";
+import { analysisRequests, analysisResults, and, asc, charts, conversations, datasets, db, desc, eq, isNull } from "@insight/database";
 import { renderInsight, segmentsToText, type AnalysisSpec, type EngineResult, type Insight, type PreviousTurn } from "@insight/ai";
 import type { TurnStatus, TurnView } from "@/lib/analyst/types";
 
@@ -25,7 +25,7 @@ export async function getConversation(workspaceId: string, conversationId: strin
   return row ?? null;
 }
 
-export function toTurn(req: typeof analysisRequests.$inferSelect, res: typeof analysisResults.$inferSelect | null): TurnView {
+export function toTurn(req: typeof analysisRequests.$inferSelect, res: typeof analysisResults.$inferSelect | null, pinned = false): TurnView {
   const result = (res?.result as EngineResult | undefined) ?? null;
   const insight = (res?.insight as Insight | undefined) ?? null;
   const plan = req.plan as { title?: string; analysis?: AnalysisSpec } | null;
@@ -40,18 +40,21 @@ export function toTurn(req: typeof analysisRequests.$inferSelect, res: typeof an
     insight,
     rendered: insight && result ? renderInsight(insight, result.facts) : null,
     insightSource: (res?.insightSource as "model" | "template" | undefined) ?? null,
+    resultId: res?.id ?? null,
+    pinned,
     createdAt: req.createdAt.toISOString(),
   };
 }
 
 export async function getTurns(workspaceId: string, conversationId: string): Promise<TurnView[]> {
   const rows = await db
-    .select({ req: analysisRequests, res: analysisResults })
+    .select({ req: analysisRequests, res: analysisResults, chartId: charts.id })
     .from(analysisRequests)
     .leftJoin(analysisResults, eq(analysisResults.requestId, analysisRequests.id))
+    .leftJoin(charts, and(eq(charts.analysisResultId, analysisResults.id), eq(charts.workspaceId, workspaceId)))
     .where(and(eq(analysisRequests.conversationId, conversationId), eq(analysisRequests.workspaceId, workspaceId)))
     .orderBy(asc(analysisRequests.createdAt));
-  return rows.map((r) => toTurn(r.req, r.res));
+  return rows.map((r) => toTurn(r.req, r.res, Boolean(r.chartId)));
 }
 
 /** The last few answered turns, given to the planner so follow-ups work. */

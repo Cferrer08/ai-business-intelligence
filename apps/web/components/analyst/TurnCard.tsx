@@ -3,6 +3,7 @@ import { describePlan } from "@/lib/analyst/describe";
 import { formatInt } from "@/lib/format";
 import { InsightText } from "./InsightText";
 import { ResultTables } from "./ResultTables";
+import { AnalysisChart } from "./AnalysisChart";
 
 export function Question({ text }: { text: string }) {
   return (
@@ -57,7 +58,7 @@ export function TurnCard({ turn }: { turn: TurnView }) {
           </section>
         ) : null}
 
-        <ResultTables result={turn.result} />
+        <AnalysisChart turn={turn} table={<ResultTables result={turn.result} />} />
 
         {r.caveats.length ? (
           <ul className="space-y-1 text-sm text-ink-muted">{r.caveats.map((s, i) => <li key={i}>Note: <InsightText segments={s} /></li>)}</ul>

@@ -4,10 +4,14 @@ import { Wordmark } from "@/components/Wordmark";
 import { CreateWorkspaceForm } from "@/components/app/CreateWorkspaceForm";
 import { requireSession } from "@/lib/auth/session";
 import { listWorkspaces } from "@/lib/server/workspace";
+import { getSchemaStatus } from "@insight/database";
+import { SchemaOutdated } from "@/components/app/SchemaOutdated";
 
 export const metadata: Metadata = { title: "Create a workspace" };
 
 export default async function OnboardingPage({ searchParams }: { searchParams: Promise<{ new?: string }> }) {
+  const schema = await getSchemaStatus();
+  if (!schema.ok) return <SchemaOutdated applied={schema.applied} expected={schema.expected} />;
   const session = await requireSession();
   const { new: addingAnother } = await searchParams;
   const workspaces = await listWorkspaces(session.user.id);

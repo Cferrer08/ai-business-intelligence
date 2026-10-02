@@ -37,7 +37,7 @@ export const comparePlan = {
   analysis: {
     type: "compare_periods", metrics: [{ column: "revenue", agg: "sum", label: "Revenue" }], ratio: null,
     dimensions: ["region"], time: { column: "order_date", grain: null }, filters: [],
-    period: { kind: "latest_complete", unit: "month", start: null, end: null }, comparison: "previous_period", sort: null, limit: null,
+    period: { kind: "latest_complete", unit: "month", start: null, end: null }, comparison: "previous_period", sort: null, limit: null, chart: null,
   },
 };
 

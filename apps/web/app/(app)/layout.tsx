@@ -4,8 +4,12 @@ import { SidebarNav } from "@/components/app/Sidebar";
 import { WorkspaceSwitcher } from "@/components/app/WorkspaceSwitcher";
 import { requireWorkspace } from "@/lib/server/workspace";
 import { logout } from "@/app/actions/auth";
+import { getSchemaStatus } from "@insight/database";
+import { SchemaOutdated } from "@/components/app/SchemaOutdated";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const schema = await getSchemaStatus();
+  if (!schema.ok) return <SchemaOutdated applied={schema.applied} expected={schema.expected} />;
   const { session, workspace, workspaces } = await requireWorkspace();
   return (
     <div className="min-h-dvh md:grid md:grid-cols-[232px_1fr]">

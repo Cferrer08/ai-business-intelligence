@@ -12,7 +12,8 @@ if (!process.env.DATABASE_URL && existsSync(envFile)) process.loadEnvFile(envFil
 async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is not set");
-  const pool = new Pool({ connectionString: url, max: 1 });
+  // Same Windows-friendly rewrite as the app's client (localhost -> 127.0.0.1).
+  const pool = new Pool({ connectionString: url.replace(/@localhost(?=[:/])/i, "@127.0.0.1"), max: 1 });
   await migrate(drizzle(pool), { migrationsFolder: path.join(__dirname, "..", "migrations") });
   await pool.end();
   console.log("Migrations applied.");

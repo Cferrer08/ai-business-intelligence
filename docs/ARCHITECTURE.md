@@ -54,7 +54,9 @@ like the others. See `DATA_ENGINE.md` and `AI_ARCHITECTURE.md`.
 | `analysis_results` | Engine result (tables + facts) and the explanation (with placeholders). |
 | `ai_requests` | Every model call: purpose, model, tokens, estimated cost, duration, outcome. |
 
-Later phases add tables (charts, reports, forecasts, documents, billing). Each carries
+| `charts` | Charts pinned to the dashboard: which analysis result, chart type, top-N. |
+
+Later phases add tables (reports, forecasts, anomalies, documents, workflows, billing). Each carries
 `workspace_id`, and every query takes that id from `requireWorkspace()`, never from input.
 
 ## Why Drizzle

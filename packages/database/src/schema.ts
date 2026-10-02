@@ -217,6 +217,26 @@ export const aiRequests = pgTable("ai_requests", {
   index("ai_requests_user_created_idx").on(t.userId, t.createdAt),
 ]);
 
+// ---------------------------------------------------------------------------
+// Phase 4: charts pinned to the dashboard. A pin points at a stored analysis result, so
+// the chart is redrawn from the engine's saved numbers; it is a snapshot of that analysis.
+// ---------------------------------------------------------------------------
+
+export const charts = pgTable("charts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  analysisResultId: uuid("analysis_result_id").notNull().references(() => analysisResults.id, { onDelete: "cascade" }),
+  createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+  title: varchar("title", { length: 160 }).notNull(),
+  chartType: varchar("chart_type", { length: 20 }).notNull(),
+  config: jsonb("config").notNull().default(sql`'{}'::jsonb`),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow().$onUpdate(() => new Date()),
+}, (t) => [
+  uniqueIndex("charts_workspace_result_key").on(t.workspaceId, t.analysisResultId),
+  index("charts_workspace_created_idx").on(t.workspaceId, t.createdAt),
+]);
+
 export type Dataset = typeof datasets.$inferSelect;
 export type DatasetColumn = typeof datasetColumns.$inferSelect;
 

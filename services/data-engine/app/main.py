@@ -26,7 +26,8 @@ from .config import ENGINE_VERSION, load_settings
 from .errors import EngineError, LimitExceeded
 from .ingest import detect_format, read_dataset
 from .analysis.compute import analyze as run_analysis
-from .analysis.models import AnalyzeRequest
+from .analysis.compute import run_dashboard
+from .analysis.models import AnalyzeRequest, DashboardRequest
 from .profiling.profile import profile_dataframe
 from .schemas import DeleteResponse, HealthResponse, IngestResponse
 from .security import require_engine_key
@@ -157,6 +158,12 @@ def analyze(request: Request, workspace_id: UUID, dataset_id: UUID, body: Analyz
     log(logging.INFO, "dataset.analyzed", workspace_id=workspace_id, dataset_id=dataset_id, type=body.spec.type,
         rows=result.get("rows_considered"), ms=result["duration_ms"])
     return result
+
+
+@app.post("/v1/workspaces/{workspace_id}/datasets/{dataset_id}/dashboard", dependencies=[Depends(require_engine_key)])
+def dashboard(request: Request, workspace_id: UUID, dataset_id: UUID, body: DashboardRequest) -> dict:
+    df = _load_frame(request.app.state.settings, workspace_id, dataset_id)
+    return run_dashboard(df, body.columns)
 
 
 @app.delete("/v1/workspaces/{workspace_id}/datasets/{dataset_id}", response_model=DeleteResponse,

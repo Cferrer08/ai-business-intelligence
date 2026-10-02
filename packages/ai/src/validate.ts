@@ -16,6 +16,9 @@ export function validatePlan(plan: Plan, ctx: DatasetContext): string[] {
   };
 
   if (a.type !== "overview" && a.metrics.length === 0) problems.push(`${a.type} needs at least one metric.`);
+  if (a.type === "distribution" && (a.metrics.length !== 1 || a.metrics[0].column === null || a.dimensions.length)) {
+    problems.push("distribution needs exactly one metric with a numeric column, and no dimensions.");
+  }
   const labels = new Set<string>();
   a.metrics.forEach((m, i) => {
     if (labels.has(m.label)) problems.push(`metrics[${i}]: label "${m.label}" is used twice.`);
@@ -64,6 +67,7 @@ export function validatePlan(plan: Plan, ctx: DatasetContext): string[] {
 }
 
 export function toEngineSpec(a: AnalysisSpec) {
-  // Drop nulls the engine treats as absent.
-  return JSON.parse(JSON.stringify(a, (_k, v) => (v === null ? undefined : v)));
+  // Drop nulls the engine treats as absent; the chart preference is for the app only.
+  const { chart: _chart, ...spec } = a;
+  return JSON.parse(JSON.stringify(spec, (_k, v) => (v === null ? undefined : v)));
 }

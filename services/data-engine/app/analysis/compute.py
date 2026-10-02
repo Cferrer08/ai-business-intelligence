@@ -16,7 +16,7 @@ import numpy as np
 import pandas as pd
 
 from ..errors import EngineError
-from .models import AnalysisSpec, ColumnRole, Filter, Metric, Period
+from .models import AnalysisSpec, ColumnRole, Filter, Metric, Period  # noqa: F401
 
 MAX_GROUPS_RETURNED = 500
 DEFAULT_LIMIT = 25
@@ -503,9 +503,129 @@ def run_overview(ctx: Context, spec: AnalysisSpec) -> dict:
             "rows_considered": int(len(df)), "chart": None}
 
 
+def run_distribution(ctx: Context, spec: AnalysisSpec) -> dict:
+    """How values of one numeric column are spread: histogram bins plus summary facts."""
+    df = apply_filters(ctx, ctx.df, spec.filters)
+    m = spec.metrics[0]
+    if spec.time and spec.period and spec.period.kind != "all":
+        t = ctx.require(spec.time.column).loc[df.index]
+        start, end, unit, partial = _period_window(t, spec.period)
+        df = df[(t >= start) & (t < end)]
+        ctx.notes.append(f"Period: {period_label(start, end, unit)}.")
+    v = _metric_series(ctx, df, Metric(column=m.column, agg="sum", label=m.label)).dropna()
+    v = v[np.isfinite(v)]
+    if v.empty:
+        raise AnalysisError("no_rows", "There are no values to show for this column.")
+    kind = ctx.kind(Metric(column=m.column, agg="sum", label=m.label))
+    is_int = bool((v % 1 == 0).all())
+    uniq = np.sort(v.unique())
+    if is_int and len(uniq) <= 30:
+        counts = v.value_counts().reindex(uniq, fill_value=0)
+        bins = [{"start": _clean(x), "end": _clean(x), "label": fmt(x, kind), "count": int(c)} for x, c in counts.items()]
+    else:
+        edges = np.histogram_bin_edges(v, bins="auto")
+        n = int(min(30, max(8, len(edges) - 1)))
+        counts, edges = np.histogram(v, bins=n)
+        bins = [{"start": _clean(edges[i]), "end": _clean(edges[i + 1]),
+                 "label": f"{fmt(edges[i], kind)} to {fmt(edges[i + 1], kind)}", "count": int(counts[i])} for i in range(len(counts))]
+    total = len(v)
+    for b in bins:
+        b["share"] = _clean(100 * b["count"] / total)
+    q1, med, q3 = v.quantile([0.25, 0.5, 0.75])
+    iqr = q3 - q1
+    outliers = int(((v < q1 - 1.5 * iqr) | (v > q3 + 1.5 * iqr)).sum()) if iqr > 0 else 0
+    facts = Facts()
+    facts.add(f"Values of {m.label}", total)
+    facts.add(f"Median {m.label}", med, kind)
+    facts.add(f"Average {m.label}", v.mean(), kind)
+    facts.add(f"Middle half of {m.label} from", q1, kind)
+    facts.add(f"Middle half of {m.label} to", q3, kind)
+    facts.add(f"Lowest {m.label}", v.min(), kind)
+    facts.add(f"Highest {m.label}", v.max(), kind)
+    top = max(bins, key=lambda b: b["count"])
+    facts.add("Most common range", top["label"], "text")
+    facts.add("Share in the most common range", top["share"], "percent")
+    facts.add("Unusually high or low values", outliers)
+    if v.mean() > med * 1.25 and med > 0:
+        ctx.notes.append(f"The average is well above the median, so a few large values pull it up; the median is the more typical value.")
+    return {"bins": bins, "summary": {"metric": m.label, "format": kind}, "facts": facts.items, "rows_considered": int(total),
+            "chart": {"kind": "histogram", "x": "label", "y": ["count"]}}
+
+
+def run_dashboard(df: pd.DataFrame, columns: list[ColumnRole]) -> dict:
+    """KPIs for the dashboard: latest complete month vs the month before, plus a monthly
+    series and the groups that moved most. Picks columns by their verified roles."""
+    ctx = Context(df, columns)
+    roles = [c for c in columns if c.name in df.columns]
+    pick = lambda role, concept=None: next((c.name for c in roles if c.role == role and (concept is None or c.concept == concept)), None)
+    time_col = pick("time")
+    money = pick("monetary", "revenue") or pick("monetary", "amount") or pick("monetary")
+    qty = pick("quantity")
+    order_col = pick("identifier", "order")
+    cust_col = pick("identifier", "customer")
+    value_col = money or qty
+    value_kind = "money" if money else "number"
+    out: dict = {"columns": {"time": time_col, "value": value_col, "orders": order_col, "customers": cust_col},
+                 "kpis": [], "series": [], "movers": [], "period": None, "notes": []}
+    if not value_col:
+        out["notes"].append("No revenue, amount or quantity column was recognised in this dataset.")
+        return out
+
+    def measures(frame: pd.DataFrame) -> dict:
+        value = float(frame[value_col].astype("float64").sum())
+        orders = int(frame[order_col].nunique()) if order_col else int(len(frame))
+        customers = int(frame[cust_col].nunique()) if cust_col else None
+        return {"value": value, "orders": orders, "customers": customers, "aov": value / orders if orders and money else None}
+
+    cur = base = None
+    if time_col and pd.api.types.is_datetime64_any_dtype(df[time_col]):
+        t = df[time_col]
+        try:
+            start, end, unit, _ = _period_window(t, Period(kind="latest_complete", unit="month"))
+            b_start = start - UNIT_OFFSET["month"]
+            cur, base = measures(df[(t >= start) & (t < end)]), measures(df[(t >= b_start) & (t < start)])
+            out["period"] = {"current": period_label(start, end, "month"), "baseline": period_label(b_start, start, "month")}
+            monthly = df.groupby(t.dt.to_period("M").dt.start_time, observed=True)
+            series = monthly[value_col].sum()
+            orders_s = monthly[order_col].nunique() if order_col else monthly.size()
+            # Months after the latest complete one are partial; flag them so a chart doesn't
+            # show an incomplete month as a drop.
+            out["series"] = [{"month": k.isoformat(), "value": _clean(v), "orders": int(orders_s.loc[k]), "partial": bool(k >= end)}
+                             for k, v in series.items()]
+            dims = [c.name for c in roles if c.role in ("geographic", "category") and 1 < df[c.name].nunique() <= 50][:2]
+            cur_df, base_df = df[(t >= start) & (t < end)], df[(t >= b_start) & (t < start)]
+            for d in dims:
+                g = pd.DataFrame({"current": cur_df.groupby(d, observed=True)[value_col].sum(),
+                                  "baseline": base_df.groupby(d, observed=True)[value_col].sum()}).fillna(0)
+                g["change"] = g["current"] - g["baseline"]
+                g["change_pct"] = np.where(g["baseline"] != 0, 100 * g["change"] / g["baseline"].abs(), np.nan)
+                g = g.reindex(g["change"].abs().sort_values(ascending=False).index).head(3)
+                out["movers"].append({"dimension": d, "rows": [{"value": str(k), **{c: _clean(r[c]) for c in g.columns}} for k, r in g.iterrows()]})
+        except AnalysisError:
+            out["notes"].append("The data doesn't cover a complete month yet, so month-over-month changes aren't shown.")
+    if cur is None:
+        cur = measures(df)
+
+    def pct(a, b):
+        return _clean(100 * (a - b) / abs(b)) if base is not None and a is not None and b else None
+
+    label = value_col if not money else ("Revenue" if pick("monetary", "revenue") else value_col)
+    out["kpis"] = [
+        {"key": "value", "label": label, "value": _clean(cur["value"]), "format": value_kind, "change_pct": pct(cur["value"], base and base["value"])},
+        {"key": "orders", "label": "Orders" if order_col else "Rows", "value": cur["orders"], "format": "number", "change_pct": pct(cur["orders"], base and base["orders"])},
+    ]
+    if cust_col:
+        out["kpis"].append({"key": "customers", "label": "Customers", "value": cur["customers"], "format": "number", "change_pct": pct(cur["customers"], base and base["customers"])})
+    if cur["aov"] is not None:
+        out["kpis"].append({"key": "aov", "label": "Average order value", "value": _clean(cur["aov"]), "format": "money", "change_pct": pct(cur["aov"], base and base["aov"])})
+    if not order_col:
+        out["notes"].append("No order id column was recognised, so orders are counted as rows.")
+    return out
+
+
 def analyze(df: pd.DataFrame, spec: AnalysisSpec, columns: list[ColumnRole]) -> dict:
     ctx = Context(df, columns)
-    runner = {"aggregate": run_aggregate, "compare_periods": run_compare, "overview": run_overview}[spec.type]
+    runner = {"aggregate": run_aggregate, "compare_periods": run_compare, "overview": run_overview, "distribution": run_distribution}[spec.type]
     result = runner(ctx, spec)
     result["type"] = spec.type
     result["notes"] = ctx.notes

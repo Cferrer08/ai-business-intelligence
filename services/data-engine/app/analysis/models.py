@@ -62,7 +62,7 @@ class Sort(BaseModel):
 
 
 class AnalysisSpec(BaseModel):
-    type: Literal["aggregate", "compare_periods", "overview"]
+    type: Literal["aggregate", "compare_periods", "overview", "distribution"]
     metrics: list[Metric] = Field(default_factory=list, max_length=3)
     ratio: Ratio | None = None
     dimensions: list[str] = Field(default_factory=list, max_length=2)
@@ -75,12 +75,14 @@ class AnalysisSpec(BaseModel):
 
     @model_validator(mode="after")
     def by_type(self):
-        if self.type in ("aggregate", "compare_periods") and not self.metrics:
+        if self.type in ("aggregate", "compare_periods", "distribution") and not self.metrics:
             raise ValueError(f"{self.type} needs at least one metric")
         if self.type == "compare_periods" and not (self.time and self.period and self.comparison):
             raise ValueError("compare_periods needs time, period and comparison")
         if self.ratio and max(self.ratio.numerator, self.ratio.denominator) >= len(self.metrics):
             raise ValueError("ratio refers to a metric that doesn't exist")
+        if self.type == "distribution" and (self.metrics[0].column is None or self.dimensions):
+            raise ValueError("distribution needs one numeric column and no dimensions")
         if len({m.label for m in self.metrics}) != len(self.metrics):
             raise ValueError("metric labels must be unique")
         return self
@@ -104,3 +106,7 @@ class AnalyzeRequest(BaseModel):
         if len({c.name for c in v}) != len(v):
             raise ValueError("duplicate column names")
         return v
+
+
+class DashboardRequest(BaseModel):
+    columns: list[ColumnRole] = Field(default_factory=list, max_length=500)

@@ -129,3 +129,46 @@ def test_spec_validation_rejects_incomplete_plans():
         spec(type="aggregate", metrics=[{"column": None, "agg": "sum", "label": "R"}])
     with pytest.raises(ValueError):
         spec(type="aggregate", metrics=[{"column": "a", "agg": "sum", "label": "R"}], ratio={"numerator": 0, "denominator": 2, "label": "x"})
+
+
+def test_distribution_integer_values_get_one_bar_each(typed):
+    df, roles = typed
+    res = analyze(df, spec(type="distribution", metrics=[{"column": "units", "agg": "sum", "label": "Units"}]), roles)
+    counts = df["units"].value_counts()
+    assert {b["start"]: b["count"] for b in res["bins"]} == {int(k): int(v) for k, v in counts.items()}
+    assert sum(b["share"] for b in res["bins"]) == pytest.approx(100)
+    assert fact(res, "Median Units")["value"] == pytest.approx(df.units.median())
+
+
+def test_distribution_continuous_values_are_binned(typed):
+    df, roles = typed
+    res = analyze(df, spec(type="distribution", metrics=[{"column": "revenue", "agg": "sum", "label": "Revenue"}]), roles)
+    assert 8 <= len(res["bins"]) <= 30
+    assert sum(b["count"] for b in res["bins"]) == df.revenue.notna().sum()
+    assert res["chart"]["kind"] == "histogram"
+    assert fact(res, "Unusually high or low values")["value"] >= 1  # the planted 99,999 order
+
+
+def test_dashboard_kpis_match_pandas(typed):
+    from app.analysis.compute import run_dashboard
+    df, roles = typed
+    out = run_dashboard(df, roles)
+    cur = df[(df.order_date >= "2027-01-01") & (df.order_date < "2027-02-01")]
+    base = df[(df.order_date >= "2026-12-01") & (df.order_date < "2027-01-01")]
+    k = {x["key"]: x for x in out["kpis"]}
+    assert out["period"] == {"current": "January 2027", "baseline": "December 2026"}
+    assert k["value"]["value"] == pytest.approx(cur.revenue.sum())
+    assert k["value"]["change_pct"] == pytest.approx(100 * (cur.revenue.sum() - base.revenue.sum()) / base.revenue.sum())
+    assert k["orders"]["value"] == cur.order_id.nunique()
+    assert k["customers"]["value"] == cur.customer_id.nunique()
+    assert k["aov"]["value"] == pytest.approx(cur.revenue.sum() / cur.order_id.nunique())
+    assert len(out["series"]) == df.order_date.dt.to_period("M").nunique()
+    assert [s["partial"] for s in out["series"]][-2:] == [False, True]  # February 2027 is incomplete
+    assert out["movers"][0]["dimension"] == "region" and len(out["movers"][0]["rows"]) == 3
+
+
+def test_dashboard_without_money_columns_explains():
+    from app.analysis.compute import run_dashboard
+    df = pd.DataFrame({"name": ["a", "b"]})
+    out = run_dashboard(df, [ColumnRole(name="name", logical_type="categorical", role="category")])
+    assert out["kpis"] == [] and "No revenue" in out["notes"][0]

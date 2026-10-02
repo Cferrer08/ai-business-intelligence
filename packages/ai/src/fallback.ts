@@ -30,6 +30,19 @@ export function templateInsight(type: string, facts: Fact[], title: string): Ins
     return out;
   }
 
+  if (type === "distribution") {
+    const med = find((l) => l.startsWith("Median "));
+    const lo = find((l) => l.startsWith("Middle half of") && l.endsWith(" from"));
+    const hi = find((l) => l.startsWith("Middle half of") && l.endsWith(" to"));
+    const common = find((l) => l === "Most common range");
+    const share = find((l) => l === "Share in the most common range");
+    const metric = med?.label.replace(/^Median /, "") ?? "The value";
+    out.headline = `The typical ${metric} is ${ph(med)}.`;
+    if (lo && hi) out.what_happened.push(`The middle half of values fall between ${ph(lo)} and ${ph(hi)}.`);
+    if (common && share) out.what_happened.push(`The most common range is ${ph(common)}, with ${ph(share)} of values.`);
+    return out;
+  }
+
   if (type === "aggregate") {
     const first = find((l) => l === "First period");
     const hiP = find((l) => l.startsWith("Highest") && l.endsWith(" period"));

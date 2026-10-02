@@ -157,7 +157,8 @@
         "period": null,
         "comparison": null,
         "sort": null,
-        "limit": null
+        "limit": null,
+        "chart": null
       },
       "headline": "Revenue peaked in one month."
     },
@@ -172,6 +173,25 @@
     "question": "Summarize the performance of this business.",
     "expect": {
       "type": "overview"
+    }
+  },
+  {
+    "id": "distribution",
+    "question": "What does the distribution of revenue per order look like?",
+    "expect": {
+      "type": "distribution",
+      "metric_column": "revenue"
+    }
+  },
+  {
+    "id": "pie-request",
+    "question": "Show revenue by category as a pie chart.",
+    "expect": {
+      "type": "aggregate",
+      "dimensions": [
+        "category"
+      ],
+      "chart": "donut"
     }
   },
   {

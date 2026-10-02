@@ -3,10 +3,17 @@
 Upload business data, ask questions in plain English, and get answers calculated by a Python
 data engine and explained by an AI analyst.
 
-The product is built in phases. **This repository is at the end of Phase 3 (AI analyst).**
+The product is built in phases. **This repository is at the end of Phase 4 (Visualization).**
 See [`docs/PHASES.md`](docs/PHASES.md) for what is done and what comes next.
 
 ## What works today
+
+**Phase 4: visualization**
+- Every analysis gets a chart chosen from its calculated results: line, bar, diverging
+  bar, histogram, scatter, pie (only where it fits) or number cards
+- Switch chart type, show top 5/10, hide series, expand, download PNG/SVG/CSV, see the data
+- Live dashboard: revenue, orders, customers and average order value for the latest complete
+  month vs the month before, monthly trend, biggest changes, pinned charts, recent analyses
 
 **Phase 3: AI analyst**
 - Ask questions in plain English about a dataset; follow-up questions keep context
@@ -32,6 +39,18 @@ See [`docs/PHASES.md`](docs/PHASES.md) for what is done and what comes next.
 - Unit tests (Vitest) and an end-to-end suite (Playwright)
 
 Nothing in the app shows sample data as if it were real. Sections from later phases say so.
+
+## Updating to a new version
+
+After copying in a new version, always run these three, in order:
+
+```powershell
+docker compose -f infrastructure/docker-compose.yml up -d --build
+npm install
+npm run db:migrate
+```
+
+If you forget the last one, the app shows a "database needs updating" page instead of errors.
 
 ## Local setup (Windows / PowerShell)
 
@@ -119,12 +138,13 @@ python apps/web/e2e/phase2_e2e.py
 Phase 3's suite uses a stand-in model so it's free and repeatable. Start the stand-in in a
 third window with `python apps/web/e2e/fake_openai.py 8765`, run the app with
 `OPENAI_API_KEY=test-openai-key` and `OPENAI_BASE_URL=http://127.0.0.1:8765/v1`, then run
-`python apps/web/e2e/phase3_e2e.py`. To score the real model, see `docs/AI_ARCHITECTURE.md`.
+`python apps/web/e2e/phase3_e2e.py`, then `python apps/web/e2e/phase4_e2e.py` with the same
+setup. To score the real model, see `docs/AI_ARCHITECTURE.md`.
 
 To empty the database before a rerun:
 
 ```powershell
-docker compose -f infrastructure/docker-compose.yml exec postgres psql -U insight -d insight_ai -c "truncate users, workspaces, workspace_members, sessions, audit_logs, datasets, dataset_columns, dataset_profiles, conversations, messages, analysis_requests, analysis_results, ai_requests cascade"
+docker compose -f infrastructure/docker-compose.yml exec postgres psql -U insight -d insight_ai -c "truncate users, workspaces, workspace_members, sessions, audit_logs, datasets, dataset_columns, dataset_profiles, conversations, messages, analysis_requests, analysis_results, ai_requests, charts cascade"
 ```
 
 Phase 1 covers sign-up validation, onboarding, rename, sign-out, revoked sessions,
@@ -138,5 +158,6 @@ workspace can neither open nor delete the dataset. Screenshots go to `e2e-shots/
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 - [`docs/DATA_ENGINE.md`](docs/DATA_ENGINE.md)
 - [`docs/AI_ARCHITECTURE.md`](docs/AI_ARCHITECTURE.md)
+- [`docs/VISUALIZATION.md`](docs/VISUALIZATION.md)
 - [`docs/SECURITY.md`](docs/SECURITY.md)
 - [`docs/PHASES.md`](docs/PHASES.md)

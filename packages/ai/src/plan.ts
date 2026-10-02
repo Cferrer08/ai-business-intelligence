@@ -16,8 +16,10 @@ export const metricSchema = z.object({
   label: z.string().min(1).max(80),
 });
 
+export const CHART_TYPES = ["auto", "line", "bar", "donut", "scatter", "histogram", "table"] as const;
+
 export const analysisSpecSchema = z.object({
-  type: z.enum(["aggregate", "compare_periods", "overview"]),
+  type: z.enum(["aggregate", "compare_periods", "overview", "distribution"]),
   metrics: z.array(metricSchema).max(3),
   ratio: z.object({ numerator: z.number().int().min(0).max(2), denominator: z.number().int().min(0).max(2), label: z.string().min(1).max(80), as_percent: z.boolean() }).nullable(),
   dimensions: z.array(z.string().max(120)).max(2),
@@ -27,6 +29,8 @@ export const analysisSpecSchema = z.object({
   comparison: z.enum(["previous_period", "same_period_last_year"]).nullable(),
   sort: z.object({ by: z.string().max(120), direction: z.enum(["asc", "desc"]) }).nullable(),
   limit: z.number().int().min(1).max(500).nullable(),
+  // Only set when the user asks for a chart type; the app checks it suits the data.
+  chart: z.enum(CHART_TYPES).nullable(),
 });
 export type AnalysisSpec = z.infer<typeof analysisSpecSchema>;
 
@@ -50,7 +54,7 @@ const obj = (properties: Record<string, object>) => ({
 });
 
 const analysisJson = obj({
-  type: { type: "string", enum: ["aggregate", "compare_periods", "overview"] },
+  type: { type: "string", enum: ["aggregate", "compare_periods", "overview", "distribution"] },
   metrics: { type: "array", items: obj({ column: nullable(str), agg: { type: "string", enum: AGGS }, label: str }) },
   ratio: nullable(obj({ numerator: { type: "integer" }, denominator: { type: "integer" }, label: str, as_percent: { type: "boolean" } })),
   dimensions: { type: "array", items: str },
@@ -60,6 +64,7 @@ const analysisJson = obj({
   comparison: nullable({ type: "string", enum: ["previous_period", "same_period_last_year"] }),
   sort: nullable(obj({ by: str, direction: { type: "string", enum: ["asc", "desc"] } })),
   limit: nullable({ type: "integer" }),
+  chart: nullable({ type: "string", enum: CHART_TYPES }),
 });
 
 export const planJsonSchema = obj({

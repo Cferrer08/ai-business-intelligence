@@ -99,7 +99,7 @@ export async function POST(req: Request) {
             .values({ requestId: request.id, workspaceId: workspace.id, result: outcome.result, insight: outcome.insight, insightSource: outcome.insightSource })
             .returning();
           assistantText = segmentsToText(outcome.rendered.headline);
-          send({ type: "done", turn: toTurn(updated, res) });
+          send({ type: "done", turn: toTurn(updated, res, false) });
         } else {
           const status = outcome.status === "failed" ? "failed" : outcome.status;
           const [updated] = await db.update(analysisRequests)

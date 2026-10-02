@@ -39,6 +39,7 @@ describe("runAnalyst", () => {
     expect(segmentsToText(out.rendered.headline)).toBe("Revenue decreased by 14.8% in September 2026 compared with August 2026.");
     expect(out.rendered.headline.filter((s) => s.factId).map((s) => s.factId)).toEqual(["f5", "f7", "f1", "f2"]);
     expect(eng.specs[0]).not.toHaveProperty("ratio"); // nulls stripped for the engine
+    expect(eng.specs[0]).not.toHaveProperty("chart"); // app-only preference
     expect(usage).toEqual(["plan", "interpret"]);
     expect(steps).toEqual(["planning", "validating", "computing", "explaining"]);
     // the dataset description is passed as marked data
@@ -120,7 +121,7 @@ describe("grounding", () => {
   });
 
   it("template explanations are always grounded", () => {
-    for (const type of ["compare_periods", "aggregate", "overview"]) {
+    for (const type of ["compare_periods", "aggregate", "overview", "distribution"]) {
       const t = templateInsight(type, compareResult.facts, "Revenue");
       expect(checkGrounding(t, compareResult.facts, compareResult.labels)).toEqual([]);
     }
@@ -139,5 +140,6 @@ describe("validatePlan", () => {
   it("rejects grouping by a number", () => expect(v((a) => { a.dimensions = ["revenue"]; })[0]).toContain("group by categories"));
   it("rejects a non-date time column", () => expect(v((a) => { a.time.column = "region"; })[0]).toContain("not a date"));
   it("rejects sorting by something not in the plan", () => expect(v((a) => { a.sort = { by: "profit", direction: "desc" }; })[0]).toContain("sort.by"));
+  it("rejects a distribution with groups", () => expect(v((a) => { a.type = "distribution"; a.time = null; a.period = null; a.comparison = null; }).join()).toContain("no dimensions"));
   it("requires periods to have a date column", () => expect(v((a) => { a.type = "aggregate"; a.time = null; }).join()).toContain("period needs time"));
 });

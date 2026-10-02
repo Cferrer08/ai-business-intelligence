@@ -25,7 +25,7 @@ def find_col(cols, role, concept=None):
 
 def base_analysis(**kw):
     a = {"type": "aggregate", "metrics": [], "ratio": None, "dimensions": [], "time": None, "filters": [],
-         "period": None, "comparison": None, "sort": None, "limit": None}
+         "period": None, "comparison": None, "sort": None, "limit": None, "chart": None}
     a.update(kw)
     return a
 
@@ -40,12 +40,26 @@ def plan(user):
     geo = find_col(cols, "geographic")
     metric = {"column": rev, "agg": "sum", "label": "Revenue"}
 
+    qty = find_col(cols, "quantity")
+    cust = find_col(cols, "identifier", "customer")
+    if "distribution" in q:
+        return {"action": "analyze", "message": None, "title": "Distribution of units per order", "analysis": base_analysis(
+            type="distribution", metrics=[{"column": qty, "agg": "sum", "label": "Units"}])}
+    if "pie chart" in q and "month" in q:
+        return {"action": "analyze", "message": None, "title": "Monthly revenue", "analysis": base_analysis(
+            metrics=[metric], time={"column": date, "grain": "month"}, chart="donut")}
+    if "pie chart" in q:
+        return {"action": "analyze", "message": None, "title": "Revenue share by region", "analysis": base_analysis(
+            metrics=[metric], dimensions=[geo], chart="donut")}
+    if "scatter" in q:
+        return {"action": "analyze", "message": None, "title": "Revenue and units by customer", "analysis": base_analysis(
+            metrics=[metric, {"column": qty, "agg": "sum", "label": "Units"}], dimensions=[cust], limit=50, chart="scatter")}
     if "forecast" in q:
         return {"action": "unsupported", "message": "Forecasting isn't available yet.", "title": "Forecast", "analysis": None}
     if "summarize" in q:
         return {"action": "analyze", "message": None, "title": "Dataset summary", "analysis": base_analysis(type="overview")}
     if "only show the northeast" in q and prev:
-        a = dict(prev[-1]["plan"]); a = {**base_analysis(), **a}
+        a = {**base_analysis(), **dict(prev[-1]["plan"])}
         a["filters"] = [{"column": geo, "op": "eq", "values": ["Northeast"]}]
         return {"action": "analyze", "message": None, "title": "Monthly revenue, Northeast", "analysis": a}
     if "why" in q or "change last month" in q:
