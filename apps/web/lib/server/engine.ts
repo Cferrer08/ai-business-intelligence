@@ -121,3 +121,26 @@ export async function dashboardData(workspaceId: string, datasetId: string, colu
   if (!res.ok) throw await rejection(res);
   return (await res.json()) as DashboardData;
 }
+
+export interface ExtractedDocument {
+  file_format: string;
+  size_bytes: number;
+  pages: number | null;
+  characters: number;
+  warnings: string[];
+  chunks: { index: number; text: string; page_start: number | null; page_end: number | null; heading: string | null; flagged: boolean }[];
+}
+
+export async function extractDocument(workspaceId: string, documentId: string, file: File): Promise<ExtractedDocument> {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  form.append("filename", file.name);
+  const res = await call(`/v1/workspaces/${workspaceId}/documents/${documentId}/extract`, { method: "POST", body: form, timeoutMs: 120_000 });
+  if (!res.ok) throw await rejection(res);
+  return (await res.json()) as ExtractedDocument;
+}
+
+export async function deleteDocumentFiles(workspaceId: string, documentId: string): Promise<void> {
+  const res = await call(`/v1/workspaces/${workspaceId}/documents/${documentId}`, { method: "DELETE" });
+  if (!res.ok) throw await rejection(res);
+}

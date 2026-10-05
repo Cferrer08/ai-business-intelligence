@@ -62,7 +62,7 @@ export async function recentAnalyses(workspaceId: string, limit = 5) {
       question: r.req.question,
       datasetName: r.datasetName,
       createdAt: r.req.createdAt.toISOString(),
-      summary: segmentsToText(renderInsight(insight, result.facts).headline),
+      summary: segmentsToText(renderInsight(insight, result.facts).headline) || insight.document_notes?.[0]?.text || "",
       result,
       plan: (r.req.plan as { analysis?: AnalysisSpec } | null)?.analysis ?? null,
     };

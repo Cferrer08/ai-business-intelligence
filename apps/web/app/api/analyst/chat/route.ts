@@ -6,6 +6,7 @@ import { getDatasetProfile } from "@/lib/server/datasets";
 import { getConversation, getTurns, previousTurns, toTurn } from "@/lib/server/analyst";
 import { analyzeDataset } from "@/lib/server/engine";
 import { getLlm, recordAiUsage } from "@/lib/server/ai";
+import { knowledgeConfigured, retrievePassages, workspaceHasDocuments } from "@/lib/server/knowledge";
 import { createRateLimiter } from "@/lib/auth/rate-limit";
 import { errorFields, logger } from "@/lib/server/logger";
 import type { StreamEvent } from "@/lib/analyst/types";
@@ -67,6 +68,7 @@ export async function POST(req: Request) {
   await db.insert(messages).values({ conversationId, workspaceId: workspace.id, role: "user", content: question, analysisRequestId: request.id });
 
   const columns = stored.profile.columns.map((c) => ({ name: c.name, logical_type: c.logical_type, role: c.role.role, concept: c.role.concept }));
+  const useDocuments = knowledgeConfigured().ok && (await workspaceHasDocuments(workspace.id));
   const started = Date.now();
   const encoder = new TextEncoder();
   const convId = conversationId;
@@ -84,6 +86,7 @@ export async function POST(req: Request) {
           {
             llm,
             execute: (spec) => analyzeDataset(workspace.id, dataset.id, spec, columns),
+            retrieve: useDocuments ? (q) => retrievePassages(workspace.id, session.user.id, q) : undefined,
             onEvent: (e) => { if (e.type === "plan") planTitle = e.title; send(e); },
             onUsage: (purpose, usage, ok, errorCode) =>
               recordAiUsage({ workspaceId: workspace.id, userId: session.user.id, analysisRequestId: request.id, purpose, model: llm.model, usage, succeeded: ok, errorCode }),
@@ -101,7 +104,7 @@ export async function POST(req: Request) {
           assistantText = segmentsToText(outcome.rendered.headline);
           send({ type: "done", turn: toTurn(updated, res, false) });
         } else {
-          const status = outcome.status === "failed" ? "failed" : outcome.status;
+          const status = outcome.status;
           const [updated] = await db.update(analysisRequests)
             .set({
               status, durationMs,

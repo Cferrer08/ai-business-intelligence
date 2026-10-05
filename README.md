@@ -3,10 +3,16 @@
 Upload business data, ask questions in plain English, and get answers calculated by a Python
 data engine and explained by an AI analyst.
 
-The product is built in phases. **This repository is at the end of Phase 5 (Advanced analytics).**
+The product is built in phases. **This repository is at the end of Phase 6 (Knowledge base).**
 See [`docs/PHASES.md`](docs/PHASES.md) for what is done and what comes next.
 
 ## What works today
+
+**Phase 6: knowledge base**
+- Upload PDFs, Word and text documents; search them by meaning on the Knowledge page
+- The AI Analyst answers document questions with citations and adds a "From your
+  documents" section to data answers, kept visibly separate from calculated numbers
+- Instruction-like passages are flagged and never sent to the AI
 
 **Phase 5: advanced analytics**
 - Forecasts with 80%/95% ranges, using the simplest method that tests well on your history
@@ -81,6 +87,10 @@ npm run db:migrate
 npm run dev        # http://localhost:3000
 ```
 
+For the Knowledge base, create a Pinecone serverless index (dimension 1536, metric cosine)
+and set `PINECONE_API_KEY` and `PINECONE_INDEX` in `apps/web/.env.local`. See
+`docs/KNOWLEDGE.md`.
+
 For the AI Analyst, add your OpenAI key to `apps/web/.env.local` (`OPENAI_API_KEY=sk-...`),
 check `OPENAI_MODEL` and its two price lines, and restart `npm run dev`. Without a key,
 everything else works and the AI Analyst page explains what's missing.
@@ -146,12 +156,14 @@ Phase 3's suite uses a stand-in model so it's free and repeatable. Start the sta
 third window with `python apps/web/e2e/fake_openai.py 8765`, run the app with
 `OPENAI_API_KEY=test-openai-key` and `OPENAI_BASE_URL=http://127.0.0.1:8765/v1`, then run
 `python apps/web/e2e/phase3_e2e.py`, then `phase4_e2e.py` and `phase5_e2e.py` with the same
-setup. To score the real model, see `docs/AI_ARCHITECTURE.md`.
+setup. For `phase6_e2e.py` also start `python apps/web/e2e/fake_pinecone.py 8766` and run the
+app with `PINECONE_API_KEY=test-pinecone-key`, `PINECONE_INDEX=insight`,
+`PINECONE_CONTROL_URL=http://127.0.0.1:8766` and `RAG_MIN_SCORE=0.1`. To score the real model, see `docs/AI_ARCHITECTURE.md`.
 
 To empty the database before a rerun:
 
 ```powershell
-docker compose -f infrastructure/docker-compose.yml exec postgres psql -U insight -d insight_ai -c "truncate users, workspaces, workspace_members, sessions, audit_logs, datasets, dataset_columns, dataset_profiles, conversations, messages, analysis_requests, analysis_results, ai_requests, charts, forecasts, anomalies, analytics_runs cascade"
+docker compose -f infrastructure/docker-compose.yml exec postgres psql -U insight -d insight_ai -c "truncate users, workspaces, workspace_members, sessions, audit_logs, datasets, dataset_columns, dataset_profiles, conversations, messages, analysis_requests, analysis_results, ai_requests, charts, forecasts, anomalies, analytics_runs, documents, document_chunks cascade"
 ```
 
 Phase 1 covers sign-up validation, onboarding, rename, sign-out, revoked sessions,
@@ -167,5 +179,6 @@ workspace can neither open nor delete the dataset. Screenshots go to `e2e-shots/
 - [`docs/AI_ARCHITECTURE.md`](docs/AI_ARCHITECTURE.md)
 - [`docs/VISUALIZATION.md`](docs/VISUALIZATION.md)
 - [`docs/ANALYTICS.md`](docs/ANALYTICS.md)
+- [`docs/KNOWLEDGE.md`](docs/KNOWLEDGE.md)
 - [`docs/SECURITY.md`](docs/SECURITY.md)
 - [`docs/PHASES.md`](docs/PHASES.md)

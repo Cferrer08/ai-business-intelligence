@@ -6,6 +6,7 @@ import type { StreamEvent, TurnView } from "@/lib/analyst/types";
 import { Question, TurnCard } from "./TurnCard";
 
 const STEPS = [
+  { key: "searching", label: "Searching your documents" },
   { key: "planning", label: "Understanding the question" },
   { key: "computing", label: "Calculating from your data" },
   { key: "explaining", label: "Writing the explanation" },
@@ -39,6 +40,7 @@ export function Analyst(props: {
     if (!q || pending) return;
     setError(null);
     setQuestion("");
+    setSearched(false);
     setPending({ question: q, step: "planning" });
     let newConversation: string | undefined;
     try {
@@ -65,7 +67,10 @@ export function Analyst(props: {
           if (!line) continue;
           const e = JSON.parse(line) as StreamEvent;
           if (e.type === "started" && !conversationId) newConversation = e.conversationId;
-          else if (e.type === "status") setPending((p) => p && { ...p, step: e.step === "validating" ? "planning" : e.step });
+          else if (e.type === "status") {
+            if (e.step === "searching") setSearched(true);
+            setPending((p) => p && { ...p, step: e.step === "validating" ? "planning" : e.step });
+          }
           else if (e.type === "plan") setPending((p) => p && { ...p, title: e.title });
           else if (e.type === "done") setTurns((t) => [...t, e.turn]);
           else if (e.type === "error") setError(e.message);
@@ -84,7 +89,9 @@ export function Analyst(props: {
     }
   }
 
-  const stepIndex = pending ? STEPS.findIndex((s) => s.key === pending.step) : -1;
+  const [searched, setSearched] = useState(false);
+  const steps = STEPS.filter((s) => s.key !== "searching" || searched);
+  const stepIndex = pending ? steps.findIndex((s) => s.key === pending.step) : -1;
 
   return (
     <div className="flex min-h-[calc(100dvh-1px)] flex-col">
@@ -120,7 +127,7 @@ export function Analyst(props: {
             <div className="rounded-lg border border-line bg-paper-raised px-5 py-4" role="status" aria-live="polite">
               {pending.title ? <p className="mb-2 text-sm font-medium text-ink-muted">{pending.title}</p> : null}
               <ol className="space-y-1.5 text-sm">
-                {STEPS.map((s, i) => (
+                {steps.map((s, i) => (
                   <li key={s.key} className={i < stepIndex ? "text-up" : i === stepIndex ? "font-medium text-ink" : "text-ink-muted"}>
                     <span aria-hidden className="inline-block w-5">{i < stepIndex ? "✓" : i === stepIndex ? "›" : "·"}</span>{s.label}
                   </li>

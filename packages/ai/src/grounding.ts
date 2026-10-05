@@ -3,7 +3,8 @@
  * checks that rule and renders the text, so every figure a user reads was computed by the
  * data engine.
  */
-import type { Insight } from "./plan";
+import type { DocumentNote, Insight } from "./plan";
+import type { Passage } from "./embeddings";
 
 export interface Fact {
   id: string;
@@ -52,12 +53,39 @@ export function toSegments(text: string, facts: Fact[]): Segment[] {
   return out;
 }
 
+// ---- Document statements ----
+
+const NUMBER = /\d[\d,.]*%?/g;
+const normNum = (s: string) => s.replace(/[,%]/g, "").replace(/\.0+$/, "").replace(/\.$/, "");
+
+/**
+ * Keeps only document statements that cite real passages and whose every number appears in
+ * one of the cited passages ("30 days" must be in the policy text, not invented). Returns
+ * the valid notes and the reasons others were dropped.
+ */
+export function checkDocumentNotes(notes: DocumentNote[], passages: Passage[]): { valid: DocumentNote[]; dropped: string[] } {
+  const byId = new Map(passages.map((p) => [p.id, p]));
+  const valid: DocumentNote[] = [];
+  const dropped: string[] = [];
+  for (const n of notes) {
+    const cited = n.sources.map((s) => byId.get(s)).filter(Boolean) as Passage[];
+    if (!cited.length) { dropped.push(`cites no known passage: "${n.text}"`); continue; }
+    if (/\{f\d+\}/.test(n.text)) { dropped.push(`mixes calculated facts into a document statement: "${n.text}"`); continue; }
+    const available = new Set(cited.flatMap((p) => (p.text.match(NUMBER) ?? []).map(normNum)));
+    const missing = (n.text.match(NUMBER) ?? []).map(normNum).filter((x) => !available.has(x));
+    if (missing.length) { dropped.push(`number ${missing[0]} isn't in the cited passage: "${n.text}"`); continue; }
+    valid.push({ text: n.text, sources: cited.map((p) => p.id) });
+  }
+  return { valid, dropped };
+}
+
 export interface RenderedInsight {
   headline: Segment[];
   what_happened: Segment[][];
   why: Segment[][];
   recommendations: { action: Segment[]; reason: Segment[] }[];
   caveats: Segment[][];
+  document_notes: DocumentNote[];
 }
 
 export function renderInsight(i: Insight, facts: Fact[]): RenderedInsight {
@@ -68,6 +96,7 @@ export function renderInsight(i: Insight, facts: Fact[]): RenderedInsight {
     why: i.why.map(r),
     recommendations: i.recommendations.map((x) => ({ action: r(x.action), reason: r(x.reason) })),
     caveats: i.caveats.map(r),
+    document_notes: i.document_notes ?? [],
   };
 }
 

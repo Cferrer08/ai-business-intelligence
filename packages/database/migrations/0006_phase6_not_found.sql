@@ -1,0 +1,1 @@
+ALTER TYPE "public"."analysis_status" ADD VALUE 'not_found';

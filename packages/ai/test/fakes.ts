@@ -65,4 +65,5 @@ export const goodInsight = {
   why: ["Northeast accounted for {f10} of the decline, a drop of {f8}."],
   recommendations: [{ action: "Review Northeast pricing and stock levels.", reason: "Northeast contributed {f10} of the change." }],
   caveats: [],
+  document_notes: [],
 };

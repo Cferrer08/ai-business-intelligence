@@ -36,6 +36,20 @@
       "when": 1790976244199,
       "tag": "0004_phase5_advanced",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1791222379430,
+      "tag": "0005_phase6_knowledge",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1791222576180,
+      "tag": "0006_phase6_not_found",
+      "breakpoints": true
     }
   ]
 }

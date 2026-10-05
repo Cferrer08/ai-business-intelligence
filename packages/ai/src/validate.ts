@@ -4,6 +4,7 @@ import type { AnalysisSpec, Plan } from "./plan";
 import { GROUPABLE_TYPES, NUMERIC_TYPES, type DatasetContext } from "./context";
 
 export function validatePlan(plan: Plan, ctx: DatasetContext): string[] {
+  if (plan.action === "documents") return [];
   if (plan.action !== "analyze") return plan.message ? [] : ["A clarification or unsupported answer needs a message."];
   const a = plan.analysis;
   if (!a) return ["action is analyze but analysis is missing."];

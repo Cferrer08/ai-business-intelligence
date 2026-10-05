@@ -7,7 +7,7 @@ const ph = (f?: Fact) => (f ? `{${f.id}}` : "");
 
 export function templateInsight(type: string, facts: Fact[], title: string): Insight {
   const find = (p: (l: string) => boolean) => facts.find((f) => p(f.label));
-  const out: Insight = { headline: title, what_happened: [], why: [], recommendations: [], caveats: [] };
+  const out: Insight = { headline: title, what_happened: [], why: [], recommendations: [], caveats: [], document_notes: [] };
 
   if (type === "compare_periods") {
     const cur = find((l) => l === "Current period");

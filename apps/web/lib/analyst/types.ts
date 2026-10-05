@@ -1,7 +1,7 @@
 // View model for one question/answer turn, shared by the server page and the stream.
 import type { AnalysisSpec, EngineResult, Insight, RenderedInsight } from "@insight/ai";
 
-export type TurnStatus = "running" | "succeeded" | "failed" | "clarification" | "unsupported";
+export type TurnStatus = "running" | "succeeded" | "failed" | "clarification" | "unsupported" | "not_found";
 
 export interface TurnView {
   requestId: string;
@@ -21,7 +21,7 @@ export interface TurnView {
 
 export type StreamEvent =
   | { type: "started"; conversationId: string; requestId: string }
-  | { type: "status"; step: "planning" | "validating" | "computing" | "explaining" }
+  | { type: "status"; step: "searching" | "planning" | "validating" | "computing" | "explaining" }
   | { type: "plan"; title: string; analysis: AnalysisSpec }
   | { type: "done"; turn: TurnView }
   | { type: "error"; message: string };

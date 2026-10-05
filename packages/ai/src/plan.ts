@@ -42,7 +42,7 @@ export const analysisSpecSchema = z.object({
 export type AnalysisSpec = z.infer<typeof analysisSpecSchema>;
 
 export const planSchema = z.object({
-  action: z.enum(["analyze", "clarify", "unsupported"]),
+  action: z.enum(["analyze", "documents", "clarify", "unsupported"]),
   message: z.string().max(600).nullable(),
   title: z.string().min(1).max(120),
   analysis: analysisSpecSchema.nullable(),
@@ -80,7 +80,7 @@ const analysisJson = obj({
 });
 
 export const planJsonSchema = obj({
-  action: { type: "string", enum: ["analyze", "clarify", "unsupported"] },
+  action: { type: "string", enum: ["analyze", "documents", "clarify", "unsupported"] },
   message: nullable(str),
   title: str,
   analysis: nullable(analysisJson),
@@ -88,14 +88,28 @@ export const planJsonSchema = obj({
 
 // ---- Explanation contract ----
 
+const docNote = z.object({ text: z.string().min(1).max(500), sources: z.array(z.string().max(10)).min(1).max(3) });
+
 export const insightSchema = z.object({
-  headline: z.string().min(1).max(300),
+  headline: z.string().max(300),
   what_happened: z.array(z.string().max(400)).max(6),
   why: z.array(z.string().max(400)).max(5),
   recommendations: z.array(z.object({ action: z.string().max(300), reason: z.string().max(300) })).max(4),
   caveats: z.array(z.string().max(300)).max(4),
+  // Statements from the workspace's documents, each citing passages ("d1"). Shown apart
+  // from calculated facts; any number must appear in a cited passage.
+  document_notes: z.array(docNote).max(6).default([]),
 });
 export type Insight = z.infer<typeof insightSchema>;
+export type DocumentNote = z.infer<typeof docNote>;
+
+export const documentAnswerSchema = z.object({
+  found: z.boolean(),
+  statements: z.array(docNote).max(6),
+});
+export type DocumentAnswer = z.infer<typeof documentAnswerSchema>;
+
+const docNoteJson = obj({ text: str, sources: { type: "array", items: str } });
 
 export const insightJsonSchema = obj({
   headline: str,
@@ -103,4 +117,10 @@ export const insightJsonSchema = obj({
   why: { type: "array", items: str },
   recommendations: { type: "array", items: obj({ action: str, reason: str }) },
   caveats: { type: "array", items: str },
+  document_notes: { type: "array", items: docNoteJson },
+});
+
+export const documentAnswerJsonSchema = obj({
+  found: { type: "boolean" },
+  statements: { type: "array", items: docNoteJson },
 });

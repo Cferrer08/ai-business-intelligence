@@ -12,7 +12,9 @@ export type AuditAction =
   | "workspace.rename"
   | "dataset.upload"
   | "dataset.upload_failed"
-  | "dataset.delete";
+  | "dataset.delete"
+  | "document.upload"
+  | "document.delete";
 
 export async function audit(entry: {
   action: AuditAction;

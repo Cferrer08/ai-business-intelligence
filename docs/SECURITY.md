@@ -62,6 +62,14 @@ are logged and never block the user's request.
 - `OPENAI_API_KEY` stays on the server; the browser only talks to `/api/analyst/chat`.
 - 30 questions per user per 10 minutes (in-process, see rate-limit note above).
 
+## Knowledge base (Phase 6)
+- Documents get the same untrusted-file treatment as datasets (signatures, size and page
+  limits, macro and zip-bomb rejection); PDF scripts and forms are never executed.
+- Vectors live in a Pinecone namespace per workspace, every query also filters on
+  `workspace_id`, and every returned id is re-checked in PostgreSQL before its text is used.
+- Instruction-like passages are flagged and never sent to a model; see `KNOWLEDGE.md` for
+  the full prompt-injection defences. Pinecone and OpenAI keys stay on the server.
+
 ## Not yet in place (scheduled)
 Email verification and password reset, CSRF review for API routes, Content-Security-Policy,
 distributed rate limiting and monitoring (Phase 10).

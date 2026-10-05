@@ -25,6 +25,7 @@ from . import storage
 from .config import ENGINE_VERSION, load_settings
 from .errors import EngineError, LimitExceeded
 from .ingest import detect_format, read_dataset
+from .documents import detect_doc_format, extract_document
 from .analysis.compute import analyze as run_analysis
 from .analysis.compute import run_dashboard
 from .analysis.models import AnalyzeRequest, DashboardRequest
@@ -164,6 +165,49 @@ def analyze(request: Request, workspace_id: UUID, dataset_id: UUID, body: Analyz
 def dashboard(request: Request, workspace_id: UUID, dataset_id: UUID, body: DashboardRequest) -> dict:
     df = _load_frame(request.app.state.settings, workspace_id, dataset_id)
     return run_dashboard(df, body.columns)
+
+
+@app.post("/v1/workspaces/{workspace_id}/documents/{document_id}/extract", dependencies=[Depends(require_engine_key)])
+def extract(request: Request, workspace_id: UUID, document_id: UUID,
+            file: UploadFile = File(...), filename: str = Form(..., max_length=255)) -> dict:
+    """Validate a document and return its passages. Files are stored next to datasets under
+    <data_dir>/<workspace>/documents/<document>/ so they can be re-processed later."""
+    settings = request.app.state.settings
+    jobs: threading.BoundedSemaphore = request.app.state.jobs
+    if not jobs.acquire(blocking=False):
+        raise EngineError("busy", "The data engine is busy with other files. Try again in a minute.", 503)
+    directory = (settings.data_dir / str(workspace_id) / "documents" / str(document_id)).resolve()
+    try:
+        fmt = detect_doc_format(filename)
+        if directory.exists():
+            raise EngineError("already_exists", "This document was already uploaded.", 409)
+        directory.mkdir(parents=True)
+        original = directory / f"original.{fmt}"
+        size = _save_upload(file, original, min(settings.max_upload_bytes, 20 * 1024 * 1024))
+        out = extract_document(original, fmt)
+        log(logging.INFO, "document.extracted", workspace_id=workspace_id, document_id=document_id, format=fmt,
+            size_bytes=size, pages=out.pages, chunks=len(out.chunks), flagged=sum(c.flagged for c in out.chunks))
+        return {"file_format": fmt, "size_bytes": size, "pages": out.pages, "characters": out.characters, "warnings": out.warnings,
+                "chunks": [{"index": c.index, "text": c.text, "page_start": c.page_start, "page_end": c.page_end,
+                            "heading": c.heading, "flagged": c.flagged} for c in out.chunks]}
+    except EngineError as exc:
+        if exc.code != "already_exists":
+            shutil.rmtree(directory, ignore_errors=True)
+        raise
+    except Exception:
+        shutil.rmtree(directory, ignore_errors=True)
+        raise
+    finally:
+        jobs.release()
+        file.file.close()
+
+
+@app.delete("/v1/workspaces/{workspace_id}/documents/{document_id}", response_model=DeleteResponse, dependencies=[Depends(require_engine_key)])
+def delete_document(request: Request, workspace_id: UUID, document_id: UUID) -> DeleteResponse:
+    directory = (request.app.state.settings.data_dir / str(workspace_id) / "documents" / str(document_id)).resolve()
+    existed = directory.exists()
+    shutil.rmtree(directory, ignore_errors=True)
+    return DeleteResponse(deleted=existed)
 
 
 @app.delete("/v1/workspaces/{workspace_id}/datasets/{dataset_id}", response_model=DeleteResponse,

@@ -6,10 +6,11 @@
  * computed answer is never lost.
  */
 import { buildContext, type DatasetContext } from "./context";
-import { checkGrounding, renderInsight, type Fact, type RenderedInsight } from "./grounding";
+import { checkDocumentNotes, checkGrounding, renderInsight, type Fact, type RenderedInsight } from "./grounding";
+import type { Passage } from "./embeddings";
 import { LlmError, type LlmClient, type LlmUsage } from "./llm";
-import { insightJsonSchema, insightSchema, planJsonSchema, planSchema, type AnalysisSpec, type Insight, type Plan } from "./plan";
-import { INTERPRETER_SYSTEM, interpreterUser, PLANNER_SYSTEM, plannerUser } from "./prompts";
+import { documentAnswerJsonSchema, documentAnswerSchema, insightJsonSchema, insightSchema, planJsonSchema, planSchema, type AnalysisSpec, type Insight, type Plan } from "./plan";
+import { DOCUMENT_ANSWER_SYSTEM, documentAnswerUser, INTERPRETER_SYSTEM, interpreterUser, PLANNER_SYSTEM, plannerUser } from "./prompts";
 import { templateInsight } from "./fallback";
 import { toEngineSpec, validatePlan } from "./validate";
 import type { DatasetProfile } from "@insight/types";
@@ -31,7 +32,7 @@ export class AnalysisExecutionError extends Error {
 }
 const FIXABLE = new Set(["unknown_column", "no_match", "not_numeric", "not_a_date", "bad_filter", "bad_period"]);
 
-export type AnalystStep = "planning" | "validating" | "computing" | "explaining";
+export type AnalystStep = "searching" | "planning" | "validating" | "computing" | "explaining";
 export type AnalystEvent =
   | { type: "status"; step: AnalystStep }
   | { type: "plan"; title: string; analysis: AnalysisSpec };
@@ -54,11 +55,13 @@ export interface AnalystDeps {
   execute: (spec: Record<string, unknown>) => Promise<EngineResult>;
   onEvent?: (e: AnalystEvent) => void;
   onUsage?: (purpose: string, usage: LlmUsage | undefined, ok: boolean, errorCode?: string) => void | Promise<void>;
+  /** Relevant, non-flagged passages from the workspace's documents (already ranked). */
+  retrieve?: (question: string) => Promise<Passage[]>;
 }
 
 export type AnalystOutcome =
   | { status: "succeeded"; title: string; plan: AnalysisSpec; result: EngineResult; insight: Insight; rendered: RenderedInsight; insightSource: "model" | "template" }
-  | { status: "clarification" | "unsupported"; title: string; message: string }
+  | { status: "clarification" | "unsupported" | "not_found"; title: string; message: string }
   | { status: "failed"; code: string; message: string; plan?: AnalysisSpec };
 
 const MESSAGES: Record<string, string> = {
@@ -82,8 +85,8 @@ async function callModel<T>(deps: AnalystDeps, purpose: string, system: string, 
   }
 }
 
-async function plan(deps: AnalystDeps, ctx: DatasetContext, input: AnalystInput, repair?: string[]): Promise<{ plan: Plan | null; problems: string[] }> {
-  const raw = await callModel(deps, repair ? "plan_repair" : "plan", PLANNER_SYSTEM, plannerUser(ctx, input.question, input.previous, repair), "analysis_plan", planJsonSchema, (d) => planSchema.safeParse(d));
+async function plan(deps: AnalystDeps, ctx: DatasetContext, input: AnalystInput, repair?: string[], passages: Passage[] = []): Promise<{ plan: Plan | null; problems: string[] }> {
+  const raw = await callModel(deps, repair ? "plan_repair" : "plan", PLANNER_SYSTEM, plannerUser(ctx, input.question, input.previous, repair, passages), "analysis_plan", planJsonSchema, (d) => planSchema.safeParse(d));
   if (!raw.success) return { plan: null, problems: raw.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`) };
   return { plan: raw.data, problems: validatePlan(raw.data, ctx) };
 }
@@ -91,12 +94,21 @@ async function plan(deps: AnalystDeps, ctx: DatasetContext, input: AnalystInput,
 export async function runAnalyst(input: AnalystInput, deps: AnalystDeps): Promise<AnalystOutcome> {
   const ctx = buildContext(input.datasetName, input.profile);
   try {
+    // 0. Search the workspace's documents. A search failure never blocks the analysis.
+    let passages: Passage[] = [];
+    let searchFailed = false;
+    if (deps.retrieve) {
+      deps.onEvent?.({ type: "status", step: "searching" });
+      try { passages = await deps.retrieve(input.question); } catch { searchFailed = true; }
+    }
+
     // 1. Plan, with one repair attempt
     deps.onEvent?.({ type: "status", step: "planning" });
-    let { plan: p, problems } = await plan(deps, ctx, input);
+    let { plan: p, problems } = await plan(deps, ctx, input, undefined, passages);
     deps.onEvent?.({ type: "status", step: "validating" });
-    if (problems.length) ({ plan: p, problems } = await plan(deps, ctx, input, problems));
+    if (problems.length) ({ plan: p, problems } = await plan(deps, ctx, input, problems, passages));
     if (!p || problems.length) return { status: "failed", code: "invalid_plan", message: MESSAGES.invalid_plan };
+    if (p.action === "documents") return answerFromDocuments(input, deps, p.title, passages, searchFailed);
     if (p.action !== "analyze") return { status: p.action === "clarify" ? "clarification" : "unsupported", title: p.title, message: p.message ?? "" };
 
     // 2. Compute, with one repair attempt for problems the engine explained
@@ -131,7 +143,7 @@ export async function runAnalyst(input: AnalystInput, deps: AnalystDeps): Promis
     for (let attempt = 0; attempt < 2 && !insight; attempt++) {
       try {
         const parsed = await callModel(deps, attempt ? "interpret_retry" : "interpret", INTERPRETER_SYSTEM,
-          interpreterUser(input.question, p.title, result.facts, result.notes, shape, repair), "insight", insightJsonSchema, (d) => insightSchema.safeParse(d));
+          interpreterUser(input.question, p.title, result.facts, result.notes, shape, repair, passages), "insight", insightJsonSchema, (d) => insightSchema.safeParse(d));
         if (!parsed.success) { repair = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`); continue; }
         const issues = checkGrounding(parsed.data, result.facts, allowed);
         if (issues.length) { repair = issues; continue; }
@@ -147,10 +159,37 @@ export async function runAnalyst(input: AnalystInput, deps: AnalystDeps): Promis
     }
     // Engine notes (computed text, not model text) are always shown.
     insight.caveats = [...insight.caveats, ...result.notes.filter((n) => !insight!.caveats.includes(n))];
+    // Document statements: keep only those whose numbers appear in the passages they cite.
+    insight.document_notes = checkDocumentNotes(insight.document_notes ?? [], passages).valid;
+    if (searchFailed) insight.caveats.push("Your documents couldn't be searched just now, so this answer uses the data only.");
+    const cited = new Set(insight.document_notes.flatMap((n) => n.sources));
+    result = { ...result, passages: passages.filter((x) => cited.has(x.id)) };
     return { status: "succeeded", title: p.title, plan: analysis, result, insight, rendered: renderInsight(insight, result.facts), insightSource: source };
   } catch (err) {
     if (err instanceof LlmError) return { status: "failed", code: err.code, message: MESSAGES[err.code] ?? MESSAGES.unavailable };
     if (err instanceof AnalysisExecutionError) return { status: "failed", code: err.code, message: err.message };
     throw err;
   }
+}
+
+
+async function answerFromDocuments(input: AnalystInput, deps: AnalystDeps, title: string, passages: Passage[], searchFailed: boolean): Promise<AnalystOutcome> {
+  if (searchFailed) return { status: "failed", code: "search_unavailable", message: "Your documents couldn't be searched just now. Try again shortly." };
+  if (!passages.length) return { status: "not_found", title, message: "None of the documents in this workspace cover that. Upload the relevant policy or guide on the Knowledge page." };
+  deps.onEvent?.({ type: "status", step: "explaining" });
+  let repair: string[] | undefined;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const parsed = await callModel(deps, attempt ? "answer_documents_retry" : "answer_documents", DOCUMENT_ANSWER_SYSTEM,
+      documentAnswerUser(input.question, passages, repair), "document_answer", documentAnswerJsonSchema, (d) => documentAnswerSchema.safeParse(d));
+    if (!parsed.success) { repair = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`); continue; }
+    if (!parsed.data.found) break;
+    const { valid, dropped } = checkDocumentNotes(parsed.data.statements, passages);
+    if (!valid.length) { repair = dropped.length ? dropped : ["Give at least one statement citing a passage."]; continue; }
+    const cited = new Set(valid.flatMap((n) => n.sources));
+    const result: EngineResult = { type: "documents", facts: [], notes: [], labels: [], passages: passages.filter((x) => cited.has(x.id)) };
+    const insight: Insight = { headline: "", what_happened: [], why: [], recommendations: [], caveats: [], document_notes: valid };
+    return { status: "succeeded", title, plan: { type: "overview", metrics: [], ratio: null, dimensions: [], time: null, filters: [], period: null, comparison: null, sort: null, limit: null, chart: null, options: null },
+      result, insight, rendered: renderInsight(insight, []), insightSource: "model" };
+  }
+  return { status: "not_found", title, message: "The documents searched don't clearly answer that. Try rephrasing, or check the Knowledge page." };
 }

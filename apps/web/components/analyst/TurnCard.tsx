@@ -4,6 +4,8 @@ import { formatInt } from "@/lib/format";
 import { InsightText } from "./InsightText";
 import { ResultTables } from "./ResultTables";
 import { AnalysisChart } from "./AnalysisChart";
+import { DocumentNotes } from "./DocumentNotes";
+import type { Passage } from "@insight/ai";
 
 export function Question({ text }: { text: string }) {
   return (
@@ -14,12 +16,12 @@ export function Question({ text }: { text: string }) {
 }
 
 export function TurnCard({ turn }: { turn: TurnView }) {
-  if (turn.status === "clarification" || turn.status === "unsupported" || turn.status === "failed") {
+  if (turn.status === "clarification" || turn.status === "unsupported" || turn.status === "failed" || turn.status === "not_found") {
     const tone = turn.status === "failed" ? "border-down/30 bg-down/5" : "border-line bg-paper-raised";
     return (
       <div className={`rounded-lg border px-5 py-4 ${tone}`}>
         <p className="text-sm font-medium text-ink-muted">
-          {turn.status === "clarification" ? "A quick question first" : turn.status === "unsupported" ? "Not available yet" : "Couldn't complete this analysis"}
+          {turn.status === "clarification" ? "A quick question first" : turn.status === "unsupported" ? "Not available yet" : turn.status === "not_found" ? "Not in your documents" : "Couldn't complete this analysis"}
         </p>
         <p className="mt-1">{turn.message}</p>
       </div>
@@ -27,6 +29,18 @@ export function TurnCard({ turn }: { turn: TurnView }) {
   }
   if (turn.status !== "succeeded" || !turn.rendered || !turn.result) return null;
   const r = turn.rendered;
+  const passages = ((turn.result as { passages?: Passage[] }).passages ?? []);
+  if (turn.result.type === "documents") {
+    return (
+      <article className="rounded-lg border border-line bg-paper-raised">
+        <header className="border-b border-line px-5 py-4">
+          <p className="text-sm font-medium text-ink-muted">Answer from your documents</p>
+          <h3 className="mt-1 text-lg font-semibold leading-snug">{turn.title && turn.title !== "From your documents" ? turn.title : turn.question}</h3>
+        </header>
+        <div className="px-5 py-4"><DocumentNotes notes={r.document_notes} passages={passages} title="What your documents say" /></div>
+      </article>
+    );
+  }
   return (
     <article className="rounded-lg border border-line bg-paper-raised">
       <header className="border-b border-line px-5 py-4">
@@ -57,6 +71,8 @@ export function TurnCard({ turn }: { turn: TurnView }) {
             </ul>
           </section>
         ) : null}
+
+        <DocumentNotes notes={r.document_notes} passages={passages} title="From your documents" />
 
         <AnalysisChart turn={turn} table={<ResultTables result={turn.result} />} />
 

@@ -31,6 +31,13 @@ question
 If the model fails after the numbers are computed, the user still gets the result with
 a template summary. If it fails before, they get a plain-language reason.
 
+## Documents (Phase 6)
+
+Before step 1 the analyst searches the workspace's documents (see `KNOWLEDGE.md`). The
+planner can choose a fourth action, `documents`, for questions the documents answer; the
+explainer can add `document_notes`. Both must cite passages, and any number in a document
+statement must appear in a cited passage (`checkDocumentNotes` in `grounding.ts`).
+
 ## Why no LangChain
 
 The spec suggests LangChain "where it provides value". Here the agent has a fixed path

@@ -29,7 +29,7 @@ const PRICES = {
 export async function recordAiUsage(entry: {
   workspaceId: string;
   userId: string;
-  analysisRequestId: string;
+  analysisRequestId: string | null;
   purpose: string;
   model: string;
   usage: LlmUsage | undefined;

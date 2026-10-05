@@ -103,3 +103,19 @@ def test_analyze_endpoint(client):
     bad = {"spec": {"type": "aggregate", "metrics": []}, "columns": []}
     assert client.post(f"/v1/workspaces/{ws}/datasets/{ds}/analyze", headers={"X-Engine-Key": KEY}, json=bad).status_code == 422
     assert client.post(f"/v1/workspaces/{ws}/datasets/{ds}/analyze", json=body).status_code == 401
+
+
+def test_document_extract_and_delete(client):
+    from tests.pdfgen import make_pdf
+    ws, doc = uuid.uuid4(), uuid.uuid4()
+    pdf = make_pdf([["Refund policy", "Items can be returned within 30 days."]])
+    r = client.post(f"/v1/workspaces/{ws}/documents/{doc}/extract", headers={"X-Engine-Key": KEY},
+                    files={"file": ("handbook.pdf", io.BytesIO(pdf))}, data={"filename": "handbook.pdf"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["pages"] == 1 and "30 days" in body["chunks"][0]["text"]
+    assert client.post(f"/v1/workspaces/{ws}/documents/{doc}/extract", headers={"X-Engine-Key": KEY},
+                       files={"file": ("handbook.pdf", io.BytesIO(pdf))}, data={"filename": "handbook.pdf"}).status_code == 409
+    assert client.delete(f"/v1/workspaces/{ws}/documents/{doc}", headers={"X-Engine-Key": KEY}).json() == {"deleted": True}
+    assert client.post(f"/v1/workspaces/{ws}/documents/{uuid.uuid4()}/extract",
+                       files={"file": ("a.pdf", io.BytesIO(pdf))}, data={"filename": "a.pdf"}).status_code == 401

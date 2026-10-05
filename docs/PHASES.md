@@ -7,8 +7,8 @@
 | 3 | AI analyst: planning, tool calling, conversation history | **Done, verified with a stand-in model** |
 | 4 | Visualization | **Done, verified** |
 | 5 | Anomalies, forecasting, correlation, segmentation | **Done, verified** |
-| 6 | RAG knowledge base (Pinecone) | Next |
-| 7 | Reports and PDF export | Planned |
+| 6 | RAG knowledge base (Pinecone) | **Done, verified with stand-ins** |
+| 7 | Reports and PDF export | Next |
 | 8 | Workflows and daily briefing | Planned |
 | 9 | Stripe billing and usage limits | Planned |
 | 10 | Production hardening, monitoring, deployment | Planned |
@@ -119,3 +119,35 @@
    came from an outlier-sensitive line fit; it now uses the matching Theil–Sen slope.
 8. Forms: an empty "All numeric columns" choice and a hidden field were rejected as invalid.
 9. A flat forecast on 23 months of seasonal data now says why seasonality isn't modelled.
+
+## Phase 6 verification
+
+- Engine: 78 tests, including PDFs (text, scanned, password-protected, fake), Word headings
+  and tables, macro rejection, injection flagging, control-character removal, chunk sizes
+- AI package: 26 tests: cited document answers, invented numbers rejected, document notes
+  beside calculations, search failure falling back to data-only answers
+- `phase6_e2e.py` with stand-ins for OpenAI and Pinecone that speak their HTTP APIs: three
+  documents indexed (one vector per passage in the workspace's namespace), scanned PDF
+  refused, semantic search, a cited policy answer, a calculation with a separate policy
+  note, the planted injection never reaching any prompt, deletion removing vectors and
+  citations, another workspace finding nothing. Phase 1–5 suites re-run: pass.
+- **Not verified here: real OpenAI embeddings and real Pinecone.** Set the keys and upload
+  a document; `RAG_MIN_SCORE` may need tuning for your documents.
+
+### Issues found and fixed during verification
+1. Passage overlap copied an injected paragraph into the next passage, flagging (and
+   excluding) legitimate text too. Flagged text is no longer carried over.
+2. "What does our pricing policy say" missed the policy because the document's title
+   wasn't embedded. Titles and headings are now embedded with each passage.
+3. PDF headings ran into the next sentence. Short unpunctuated lines followed by a
+   capitalised line are now treated as headings and label their passages.
+4. The document answer card repeated "From your documents" as label and heading.
+
+### Follow-up: extraction checked against realistic documents
+A price list, two policies and a supplier-notes file were extracted and every passage read.
+Found and fixed: PDF running footers inside passages, table rows run together, SKUs and
+table headers taken as headings, wrapped lines scrambled (pypdf positions; switched layout
+reading to pdfminer.six), prose with "$35" or "10%" treated as table rows, a table's first
+label-only row merged into its header, passages ending on a heading, tables split across
+passages losing their header row, and one injected sentence excluding a whole passage of
+legitimate text. Engine tests: 81.

@@ -10,7 +10,23 @@ type State =
   | { kind: "processing"; name: string }
   | { kind: "error"; message: string };
 
-export function Uploader({ disabled }: { disabled?: boolean }) {
+export interface UploaderConfig {
+  endpoint: string;
+  accept: string;
+  check: (f: { name: string; size: number }) => string | null;
+  hint: string;
+  redirect: (id: string) => string;
+  processingText: string;
+  label: string;
+}
+
+const DATASETS: UploaderConfig = {
+  endpoint: "/api/datasets", accept: ACCEPT_ATTRIBUTE, check: checkUpload,
+  hint: `CSV, Excel (.xlsx), JSON or Parquet, up to ${MAX_UPLOAD_MB} MB.`, redirect: (id) => `/data/${id}`,
+  processingText: "Checking the file and profiling every column…", label: "Upload a dataset",
+};
+
+export function Uploader({ disabled, config = DATASETS }: { disabled?: boolean; config?: UploaderConfig }) {
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [state, setState] = useState<State>({ kind: "idle" });
@@ -18,13 +34,13 @@ export function Uploader({ disabled }: { disabled?: boolean }) {
   const busy = state.kind === "uploading" || state.kind === "processing";
 
   function send(file: File) {
-    const problem = checkUpload(file);
+    const problem = config.check(file);
     if (problem) return setState({ kind: "error", message: problem });
 
     const body = new FormData();
     body.append("file", file);
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", "/api/datasets");
+    xhr.open("POST", config.endpoint);
     xhr.responseType = "json";
     xhr.upload.onprogress = (e) => {
       if (!e.lengthComputable) return;
@@ -35,10 +51,10 @@ export function Uploader({ disabled }: { disabled?: boolean }) {
     xhr.onload = () => {
       const res = xhr.response as { ok?: boolean; id?: string; error?: string } | null;
       if (xhr.status === 200 && res?.ok && res.id) {
-        router.push(`/data/${res.id}`);
+        router.push(config.redirect(res.id));
         return;
       }
-      if (xhr.status === 401) return router.push("/login?next=/data");
+      if (xhr.status === 401) return router.push("/login");
       setState({ kind: "error", message: res?.error ?? "The upload failed. Try again." });
       router.refresh();
     };
@@ -66,7 +82,7 @@ export function Uploader({ disabled }: { disabled?: boolean }) {
           <div className="w-full" role="status" aria-live="polite">
             <p className="font-medium">{state.name}</p>
             <p className="mt-0.5 text-sm text-ink-soft">
-              {state.kind === "uploading" ? `Uploading… ${state.percent}%` : "Checking the file and profiling every column…"}
+              {state.kind === "uploading" ? `Uploading… ${state.percent}%` : config.processingText}
             </p>
             <div className="mt-3 h-1.5 w-full max-w-md overflow-hidden rounded-full bg-paper-sunk">
               <div
@@ -79,7 +95,7 @@ export function Uploader({ disabled }: { disabled?: boolean }) {
           <>
             <div>
               <p className="font-medium">Drop a file here, or choose one</p>
-              <p className="mt-0.5 text-sm text-ink-soft">CSV, Excel (.xlsx), JSON or Parquet, up to {MAX_UPLOAD_MB} MB.</p>
+              <p className="mt-0.5 text-sm text-ink-soft">{config.hint}</p>
             </div>
             <button
               type="button"
@@ -91,7 +107,7 @@ export function Uploader({ disabled }: { disabled?: boolean }) {
             </button>
           </>
         )}
-        <input ref={input} type="file" accept={ACCEPT_ATTRIBUTE} className="sr-only" tabIndex={-1} aria-label="Upload a dataset" onChange={(e) => onFiles(e.target.files)} />
+        <input ref={input} type="file" accept={config.accept} className="sr-only" tabIndex={-1} aria-label={config.label} onChange={(e) => onFiles(e.target.files)} />
       </div>
       {state.kind === "error" ? (
         <p role="alert" className="mt-3 rounded border border-down/30 bg-down/5 px-3 py-2 text-sm text-down">{state.message}</p>

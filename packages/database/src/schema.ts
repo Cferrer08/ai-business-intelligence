@@ -145,7 +145,7 @@ export const datasetProfiles = pgTable("dataset_profiles", {
 // ---------------------------------------------------------------------------
 
 export const messageRole = pgEnum("message_role", ["user", "assistant"]);
-export const analysisStatus = pgEnum("analysis_status", ["running", "succeeded", "failed", "clarification", "unsupported"]);
+export const analysisStatus = pgEnum("analysis_status", ["running", "succeeded", "failed", "clarification", "unsupported", "not_found"]);
 
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -260,6 +260,51 @@ export const analyticsRuns = pgTable("analytics_runs", {
   ...runColumns(),
   kind: varchar("kind", { length: 20 }).notNull(), // correlation | segmentation | trend
 }, (t) => [index("analytics_runs_workspace_created_idx").on(t.workspaceId, t.createdAt)]);
+
+// ---------------------------------------------------------------------------
+// Phase 6: knowledge base. Passage text lives here (the source of truth); Pinecone holds
+// only vectors and ids, in a namespace per workspace. Every search result is re-checked
+// against this table and the workspace before its text is used.
+// ---------------------------------------------------------------------------
+
+export const documentStatus = pgEnum("document_status", ["processing", "ready", "failed"]);
+
+export const documents = pgTable("documents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  name: varchar("name", { length: 160 }).notNull(),
+  originalFilename: varchar("original_filename", { length: 255 }).notNull(),
+  fileFormat: varchar("file_format", { length: 10 }).notNull(),
+  sizeBytes: bigint("size_bytes", { mode: "number" }).notNull(),
+  status: documentStatus("status").notNull().default("processing"),
+  pages: integer("pages"),
+  chunkCount: integer("chunk_count"),
+  flaggedCount: integer("flagged_count").notNull().default(0),
+  warnings: jsonb("warnings").notNull().default(sql`'[]'::jsonb`),
+  errorMessage: varchar("error_message", { length: 500 }),
+  embeddingModel: varchar("embedding_model", { length: 80 }),
+  createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow().$onUpdate(() => new Date()),
+  deletedAt: ts("deleted_at"),
+}, (t) => [index("documents_workspace_created_idx").on(t.workspaceId, t.createdAt)]);
+
+export const documentChunks = pgTable("document_chunks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  documentId: uuid("document_id").notNull().references(() => documents.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  chunkIndex: integer("chunk_index").notNull(),
+  text: text("text").notNull(),
+  pageStart: integer("page_start"),
+  pageEnd: integer("page_end"),
+  heading: varchar("heading", { length: 160 }),
+  // Read like instructions to an AI: searchable, but never placed in a model prompt.
+  flagged: boolean("flagged").notNull().default(false),
+  createdAt: ts("created_at").notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex("document_chunks_document_index_key").on(t.documentId, t.chunkIndex),
+  index("document_chunks_workspace_idx").on(t.workspaceId),
+]);
 
 export type Dataset = typeof datasets.$inferSelect;
 export type DatasetColumn = typeof datasetColumns.$inferSelect;

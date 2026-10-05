@@ -1,7 +1,7 @@
 // Sidebar sections and the phase in which each becomes functional.
 // Sections without a page yet render an honest "not built yet" screen instead of mock data.
 /** Highest phase that is built. Sections from later phases show an honest placeholder. */
-export const CURRENT_PHASE = 5;
+export const CURRENT_PHASE = 6;
 
 export interface NavItem {
   href: string;
@@ -13,6 +13,7 @@ export interface NavItem {
 export const NAV: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", phase: 1, summary: "Business overview and recent analyses." },
   { href: "/data", label: "Data", phase: 2, summary: "Upload CSV, Excel, JSON and Parquet files, then review an automatic quality profile of each dataset." },
+  { href: "/knowledge", label: "Knowledge", phase: 6, summary: "Business documents the AI Analyst can cite." },
   { href: "/analyst", label: "AI Analyst", phase: 3, summary: "Ask questions in plain English. Calculations run in the Python engine; the AI explains the results." },
   { href: "/reports", label: "Reports", phase: 7, summary: "Executive reports with charts, exportable to PDF and shareable by link." },
   { href: "/forecasts", label: "Forecasts", phase: 5, summary: "Forecast a metric with confidence intervals, using the simplest model that fits the data." },

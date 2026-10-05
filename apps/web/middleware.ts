@@ -6,7 +6,7 @@ import { SESSION_COOKIE } from "@/lib/auth/config";
 // must not be able to bounce between the two.
 // The real session check (DB lookup, expiry) happens in
 // requireSession() on every protected page and action, so this is not the security boundary.
-const PROTECTED = ["/dashboard", "/onboarding", "/settings", "/data", "/analyst", "/reports", "/forecasts", "/anomalies", "/workflows", "/analytics", "/usage", "/billing"];
+const PROTECTED = ["/dashboard", "/onboarding", "/settings", "/data", "/analyst", "/reports", "/forecasts", "/anomalies", "/workflows", "/analytics", "/usage", "/billing", "/knowledge"];
 
 export function middleware(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
