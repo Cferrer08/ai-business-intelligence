@@ -30,6 +30,63 @@ export function templateInsight(type: string, facts: Fact[], title: string): Ins
     return out;
   }
 
+  if (type === "forecast") {
+    const first = find((l) => l === "First forecast period");
+    const val = find((l) => l.startsWith("Forecast ") && l.endsWith("for the first period"));
+    const lo = find((l) => l.startsWith("Likely range for the first period, low"));
+    const hi = find((l) => l.startsWith("Likely range for the first period, high"));
+    const method = find((l) => l === "Method");
+    const imp = find((l) => l.startsWith("Improvement over"));
+    const total = find((l) => l.startsWith("Total forecast"));
+    const last = find((l) => l === "Last forecast period");
+    out.headline = `The forecast for ${ph(first)} is ${ph(val)}, likely between ${ph(lo)} and ${ph(hi)}.`;
+    if (total && last) out.what_happened.push(`The total forecast through ${ph(last)} is ${ph(total)}.`);
+    if (method) out.what_happened.push(`Method: ${ph(method)}, chosen by testing on past data${imp ? `; it was ${ph(imp)} more accurate than repeating the last value` : ""}.`);
+    return out;
+  }
+  if (type === "anomalies") {
+    const found = find((l) => l.startsWith("Unusual") && l.endsWith("found"));
+    const checked = find((l) => l.endsWith("checked") && l !== "Columns checked") ?? find((l) => l === "Rows checked");
+    out.headline = `${ph(found)} unusual ${found?.label.replace(/^Unusual /, "").replace(/ found$/, "") ?? "items"} found out of ${ph(checked)} checked.`;
+    for (const f of facts.filter((x) => x.label.includes(": difference from")).slice(0, 3)) {
+      const name = f.label.split(":")[0];
+      const dir = find((l) => l === `${name}: direction`);
+      out.what_happened.push(`${name} was ${ph(f)} ${ph(dir)} what was expected.`);
+    }
+    return out;
+  }
+  if (type === "correlation") {
+    out.headline = "Relationships between the numeric measures in this data.";
+    for (const f of facts.filter((x) => x.label.endsWith(": strength")).slice(0, 3)) {
+      const pair = f.label.replace(/: strength$/, "");
+      const dir = find((l) => l === `${pair}: direction`);
+      const clear = find((l) => l === `${pair}: statistically clear`);
+      out.what_happened.push(`${pair}: ${ph(f)}, they ${ph(dir)}. Statistically clear: ${ph(clear)}.`);
+    }
+    return out;
+  }
+  if (type === "segmentation") {
+    const n = find((l) => l === "Customers segmented");
+    out.headline = `${ph(n)} customers grouped by how recently, how often and how much they buy.`;
+    for (const f of facts.filter((x) => x.label.endsWith(": share of revenue")).slice(0, 4)) {
+      const seg = f.label.split(":")[0];
+      const c = find((l) => l === `${seg}: customers`);
+      out.what_happened.push(`${seg}: ${ph(c)} customers, ${ph(f)} of revenue.`);
+    }
+    return out;
+  }
+  if (type === "trend") {
+    const t = find((l) => l === "Trend");
+    const from = find((l) => l === "From");
+    const to = find((l) => l === "To");
+    const per = find((l) => l.startsWith("Typical change per") && l.endsWith("(absolute amount)"));
+    const clear = find((l) => l === "Statistically clear");
+    out.headline = `Trend from ${ph(from)} to ${ph(to)}: ${ph(t)}.`;
+    if (per) out.what_happened.push(`It typically changed by ${ph(per)} per period.`);
+    if (clear) out.what_happened.push(`Statistically clear: ${ph(clear)}.`);
+    return out;
+  }
+
   if (type === "distribution") {
     const med = find((l) => l.startsWith("Median "));
     const lo = find((l) => l.startsWith("Middle half of") && l.endsWith(" from"));

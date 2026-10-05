@@ -107,7 +107,7 @@ with sync_playwright() as p:
     a.screenshot(path=str(SHOTS / "p3-2-why.png"), full_page=True)
 
     # 4. Unsupported request is explained, not faked
-    ask(a, "Forecast revenue for the next 3 months")
+    ask(a, "Pull last year's numbers from our CRM")
     expect(a.get_by_text("Not available yet").last).to_be_visible()
 
     # 5. Typo in a filter value: engine suggests the real value, plan is repaired

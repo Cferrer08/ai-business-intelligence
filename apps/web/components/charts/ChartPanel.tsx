@@ -8,6 +8,7 @@ import { Chart } from "./Chart";
 
 const LABEL: Record<ChartType, string> = {
   line: "Line", bar: "Bar", donut: "Pie", scatter: "Scatter", histogram: "Histogram", diverging: "Bar", kpi: "Summary", table: "Table",
+  forecast: "Forecast", anomaly: "Line", matrix: "Matrix",
 };
 
 export interface PanelState { type: ChartType; topN: number | null }
@@ -46,6 +47,7 @@ export function ChartPanel({
   const target = () => (expanded ? big.current : box.current);
 
   const isChart = type !== "table" && type !== "kpi";
+  const isSvg = isChart && type !== "matrix";
   const body = (height: number, ref: React.RefObject<HTMLDivElement | null>) =>
     type === "table" ? table ?? null : (
       <div ref={ref}>
@@ -80,9 +82,13 @@ export function ChartPanel({
           <details className="relative">
             <summary className="cursor-pointer list-none rounded border border-line bg-paper-raised px-2.5 py-1 text-ink-soft hover:text-ink">Download</summary>
             <div className="absolute right-0 z-20 mt-1 w-36 rounded border border-line bg-paper-raised py-1 shadow-lg">
-              <button type="button" className="block w-full px-3 py-1.5 text-left hover:bg-paper" onClick={async (e) => { (e.currentTarget.closest("details") as HTMLDetailsElement).open = false; flash((await exportPng(target()!, title)) ? "PNG downloaded" : "Couldn't export this chart"); }}>Image (PNG)</button>
-              <button type="button" className="block w-full px-3 py-1.5 text-left hover:bg-paper" onClick={(e) => { (e.currentTarget.closest("details") as HTMLDetailsElement).open = false; flash(exportSvg(target()!, title) ? "SVG downloaded" : "Couldn't export this chart"); }}>Vector (SVG)</button>
-              <button type="button" className="block w-full px-3 py-1.5 text-left hover:bg-paper" onClick={(e) => { (e.currentTarget.closest("details") as HTMLDetailsElement).open = false; exportCsv(chartCsv(shown), title); flash("CSV downloaded"); }}>Data (CSV)</button>
+              {isSvg ? (
+                <>
+                  <button type="button" className="block w-full px-3 py-1.5 text-left hover:bg-paper" onClick={async (e) => { (e.currentTarget.closest("details") as HTMLDetailsElement).open = false; flash((await exportPng(target()!, title)) ? "PNG downloaded" : "Couldn't export this chart"); }}>Image (PNG)</button>
+                  <button type="button" className="block w-full px-3 py-1.5 text-left hover:bg-paper" onClick={(e) => { (e.currentTarget.closest("details") as HTMLDetailsElement).open = false; flash(exportSvg(target()!, title) ? "SVG downloaded" : "Couldn't export this chart"); }}>Vector (SVG)</button>
+                </>
+              ) : null}
+              <button type="button" className="block w-full px-3 py-1.5 text-left hover:bg-paper" onClick={(e) => { (e.currentTarget.closest("details") as HTMLDetailsElement).open = false; exportCsv(chartCsv(shown, type), title); flash("CSV downloaded"); }}>Data (CSV)</button>
             </div>
           </details>
         </>

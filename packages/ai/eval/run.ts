@@ -5,12 +5,21 @@
  *   - grounded explanations: the model's text passed the number check without fallback
  * plus latency, tokens and estimated cost. Needs the data engine running.
  *
- * PowerShell:
- *   $env:OPENAI_API_KEY="sk-..."; $env:ENGINE_API_KEY="dev-engine-key-change-me"
+ * Reads OPENAI_API_KEY etc. from apps/web/.env.local (shell variables take precedence):
  *   npm run eval -w @insight/ai
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+
+// Use the web app's settings (OPENAI_API_KEY, OPENAI_MODEL, ENGINE_API_KEY, FASTAPI_URL)
+// unless they're already set in the shell, so the eval needs no extra setup.
+const webEnv = join(__dirname, "..", "..", "..", "apps", "web", ".env.local");
+if (existsSync(webEnv)) {
+  for (const line of readFileSync(webEnv, "utf8").split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+    if (m && !process.env[m[1]] && m[2] !== "") process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+}
 import { randomUUID } from "node:crypto";
 import { AnalysisExecutionError, runAnalyst, type EngineResult } from "../src/analyst";
 import { createOpenAiClient, estimateCost, type LlmUsage } from "../src/llm";
@@ -25,18 +34,20 @@ const PRICES = { input: Number(process.env.OPENAI_PRICE_INPUT_PER_1M ?? 0.4), ou
 
 type Expect = {
   action?: string; action_not?: string; type?: string; metric_column?: string; dimensions?: string[]; grain?: string;
-  filter_column?: string; period_kind?: string; ratio?: boolean; chart?: string; facts?: { label_contains: string; value: number }[];
+  filter_column?: string; period_kind?: string; ratio?: boolean; chart?: string; horizon?: number; scope?: string; facts?: { label_contains: string; value: number }[];
 };
 type Case = { id: string; question: string; previous?: any; expect: Expect };
 
 async function main() {
-  if (!process.env.OPENAI_API_KEY) throw new Error("Set OPENAI_API_KEY");
+  if (!process.env.OPENAI_API_KEY) throw new Error("OPENAI_API_KEY isn't set. Add it to apps/web/.env.local or set it in this shell.");
   const llm = createOpenAiClient({ apiKey: process.env.OPENAI_API_KEY, model: MODEL, baseUrl: process.env.OPENAI_BASE_URL });
   const ws = randomUUID(), ds = randomUUID();
   const form = new FormData();
   form.append("file", new Blob([readFileSync(join(dir, "sales_eval.csv"))]), "sales_eval.csv");
   form.append("filename", "sales_eval.csv");
-  const ing = await fetch(`${ENGINE}/v1/workspaces/${ws}/datasets/${ds}/ingest`, { method: "POST", headers: { "X-Engine-Key": KEY }, body: form });
+  const ing = await fetch(`${ENGINE}/v1/workspaces/${ws}/datasets/${ds}/ingest`, { method: "POST", headers: { "X-Engine-Key": KEY }, body: form })
+    .catch(() => { throw new Error(`Couldn't reach the data engine at ${ENGINE}. Start it with: docker compose -f infrastructure/docker-compose.yml up -d`); });
+  if (ing.status === 401) throw new Error("The data engine rejected ENGINE_API_KEY. It must match the key in infrastructure/docker-compose.yml.");
   if (!ing.ok) throw new Error(`Engine ingest failed: ${ing.status} ${await ing.text()}`);
   const profile = (await ing.json()).profile as DatasetProfile;
   const columns = profile.columns.map((c) => ({ name: c.name, logical_type: c.logical_type, role: c.role.role, concept: c.role.concept }));
@@ -83,6 +94,8 @@ async function main() {
         if (e.period_kind && p.period?.kind !== e.period_kind) problems.push(`period ${p.period?.kind}`);
         if (e.ratio && !p.ratio) problems.push("no ratio");
         if (e.chart && p.chart !== e.chart) problems.push(`chart ${p.chart}`);
+        if (e.horizon && p.options?.horizon !== e.horizon) problems.push(`horizon ${p.options?.horizon}`);
+        if (e.scope && (p.options?.scope ?? "time") !== e.scope) problems.push(`scope ${p.options?.scope}`);
         explained++;
         if (out.insightSource === "model") grounded++;
         for (const f of e.facts ?? []) {
@@ -107,4 +120,4 @@ async function main() {
   if (planOk < cases.length || numOk < numChecks) process.exitCode = 1;
 }
 
-main().catch((e) => { console.error(e); process.exit(1); });
+main().catch((e) => { console.error(`\n${e instanceof Error ? e.message : e}`); process.exit(1); });

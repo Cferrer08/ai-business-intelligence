@@ -18,8 +18,10 @@ export const metricSchema = z.object({
 
 export const CHART_TYPES = ["auto", "line", "bar", "donut", "scatter", "histogram", "table"] as const;
 
+export const ANALYSIS_TYPES = ["aggregate", "compare_periods", "overview", "distribution", "forecast", "anomalies", "correlation", "segmentation", "trend"] as const;
+
 export const analysisSpecSchema = z.object({
-  type: z.enum(["aggregate", "compare_periods", "overview", "distribution"]),
+  type: z.enum(ANALYSIS_TYPES),
   metrics: z.array(metricSchema).max(3),
   ratio: z.object({ numerator: z.number().int().min(0).max(2), denominator: z.number().int().min(0).max(2), label: z.string().min(1).max(80), as_percent: z.boolean() }).nullable(),
   dimensions: z.array(z.string().max(120)).max(2),
@@ -31,6 +33,11 @@ export const analysisSpecSchema = z.object({
   limit: z.number().int().min(1).max(500).nullable(),
   // Only set when the user asks for a chart type; the app checks it suits the data.
   chart: z.enum(CHART_TYPES).nullable(),
+  options: z.object({
+    horizon: z.number().int().min(1).max(104).nullable(),
+    scope: z.enum(["time", "records", "groups"]).nullable(),
+    sensitivity: z.enum(["low", "normal", "high"]).nullable(),
+  }).nullable(),
 });
 export type AnalysisSpec = z.infer<typeof analysisSpecSchema>;
 
@@ -54,7 +61,7 @@ const obj = (properties: Record<string, object>) => ({
 });
 
 const analysisJson = obj({
-  type: { type: "string", enum: ["aggregate", "compare_periods", "overview", "distribution"] },
+  type: { type: "string", enum: ANALYSIS_TYPES },
   metrics: { type: "array", items: obj({ column: nullable(str), agg: { type: "string", enum: AGGS }, label: str }) },
   ratio: nullable(obj({ numerator: { type: "integer" }, denominator: { type: "integer" }, label: str, as_percent: { type: "boolean" } })),
   dimensions: { type: "array", items: str },
@@ -65,6 +72,11 @@ const analysisJson = obj({
   sort: nullable(obj({ by: str, direction: { type: "string", enum: ["asc", "desc"] } })),
   limit: nullable({ type: "integer" }),
   chart: nullable({ type: "string", enum: CHART_TYPES }),
+  options: nullable(obj({
+    horizon: nullable({ type: "integer" }),
+    scope: nullable({ type: "string", enum: ["time", "records", "groups"] }),
+    sensitivity: nullable({ type: "string", enum: ["low", "normal", "high"] }),
+  })),
 });
 
 export const planJsonSchema = obj({

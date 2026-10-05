@@ -15,7 +15,17 @@ export function validatePlan(plan: Plan, ctx: DatasetContext): string[] {
     return c;
   };
 
-  if (a.type !== "overview" && a.metrics.length === 0) problems.push(`${a.type} needs at least one metric.`);
+  const NEEDS_METRIC = ["aggregate", "compare_periods", "distribution", "forecast", "trend"];
+  if (NEEDS_METRIC.includes(a.type) && a.metrics.length === 0) problems.push(`${a.type} needs at least one metric.`);
+  if ((a.type === "forecast" || a.type === "trend") && !a.time) problems.push(`${a.type} needs time (the date column).`);
+  if ((a.type === "forecast" || a.type === "trend") && a.metrics[0] && !["sum", "count", "count_distinct"].includes(a.metrics[0].agg)) {
+    problems.push(`${a.type} works on totals or counts; use agg sum, count or count_distinct.`);
+  }
+  if (a.type === "anomalies") {
+    const scope = a.options?.scope ?? (a.time && a.metrics.length ? "time" : "records");
+    if ((scope === "time" || scope === "groups") && (!a.time || !a.metrics.length)) problems.push(`anomalies with scope ${scope} need time and a metric.`);
+    if (scope === "groups" && !a.dimensions.length) problems.push("anomalies with scope groups need one dimension (the grouping to check).");
+  }
   if (a.type === "distribution" && (a.metrics.length !== 1 || a.metrics[0].column === null || a.dimensions.length)) {
     problems.push("distribution needs exactly one metric with a numeric column, and no dimensions.");
   }

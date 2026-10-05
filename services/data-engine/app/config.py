@@ -5,7 +5,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-ENGINE_VERSION = "0.2.0"
+ENGINE_VERSION = "0.5.0"
 
 
 @dataclass(frozen=True)

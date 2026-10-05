@@ -1,21 +1,17 @@
 # Build phases
 
-
-| Phase | Scope                                                         | Status                                   |
-| ----- | ------------------------------------------------------------- | ---------------------------------------- |
-| 1     | Foundation: app, database, auth, workspaces, dashboard        | **Done, verified**                       |
-| 2     | Data engine: upload, storage, Pandas profiling, quality score | **Done, verified**                       |
-| 3     | AI analyst: planning, tool calling, conversation history      | **Done, verified with a stand-in model** |
-| 4     | Visualization                                                 | **Done, verified**                       |
-| 5     | Anomalies, forecasting, correlation, segmentation             | Next                                     |
-| 6     | RAG knowledge base (Pinecone)                                 | Planned                                  |
-| 7     | Reports and PDF export                                        | Planned                                  |
-| 8     | Workflows and daily briefing                                  | Planned                                  |
-| 9     | Stripe billing and usage limits                               | Planned                                  |
-| 10    | Production hardening, monitoring, deployment                  | Planned                                  |
-
-
-
+| Phase | Scope | Status |
+| --- | --- | --- |
+| 1 | Foundation: app, database, auth, workspaces, dashboard | **Done, verified** |
+| 2 | Data engine: upload, storage, Pandas profiling, quality score | **Done, verified** |
+| 3 | AI analyst: planning, tool calling, conversation history | **Done, verified with a stand-in model** |
+| 4 | Visualization | **Done, verified** |
+| 5 | Anomalies, forecasting, correlation, segmentation | **Done, verified** |
+| 6 | RAG knowledge base (Pinecone) | Next |
+| 7 | Reports and PDF export | Planned |
+| 8 | Workflows and daily briefing | Planned |
+| 9 | Stripe billing and usage limits | Planned |
+| 10 | Production hardening, monitoring, deployment | Planned |
 
 ## Phase 1 verification
 
@@ -24,67 +20,52 @@
 - `next build`: clean production build
 - `apps/web/e2e/phase1_e2e.py` against a production build and real PostgreSQL: all checks pass
 
-
-
 ### Bugs found and fixed during verification
-
 1. React 19 resets forms after an action, which erased the user's input on a validation
-  error. Non-secret fields are now echoed back and refilled.
+   error. Non-secret fields are now echoed back and refilled.
 2. In production, sign-out didn't clear the `__Host-` cookie (attributes didn't match), and
-  the middleware bounced any cookie-holder from `/login` to `/dashboard`, causing a redirect
+   the middleware bounced any cookie-holder from `/login` to `/dashboard`, causing a redirect
    loop. Cookie set/clear now share one attribute definition, and only a real session check
    redirects away from `/login`. Revoked sessions return users to the page they asked for.
-
-
 
 ## Phase 2 verification
 
 - Engine: 36 pytest tests (type conversion, roles, quality score, every file format,
-malformed/binary/macro/zip-bomb files, limits, API auth, workspace-scoped deletion)
+  malformed/binary/macro/zip-bomb files, limits, API auth, workspace-scoped deletion)
 - Web: 16 unit tests; type check; clean production build
 - `apps/web/e2e/phase2_e2e.py` with the real engine and PostgreSQL: all checks pass,
-including a forged cross-workspace delete and an engine outage. Phase 1 suite re-run: passes.
+  including a forged cross-workspace delete and an engine outage. Phase 1 suite re-run: passes.
 - Performance: 125,000 rows × 8 columns profiled in about 2 seconds
 
-
-
 ### Issues found and fixed during verification
-
 1. Customer and product ids that repeat across rows were classified as free text. Id-named
-  columns are now identifiers regardless of repetition.
+   columns are now identifiers regardless of repetition.
 2. A single extreme value hid a real relationship from Pearson correlation. Detection now
-  uses Spearman rank correlation, with Pearson reported alongside.
+   uses Spearman rank correlation, with Pearson reported alongside.
 3. An optional, mostly-empty Notes column cut the quality score by 28 points and was
-  penalised twice. Sparse columns now get one small, labelled penalty.
+   penalised twice. Sparse columns now get one small, labelled penalty.
 4. Unique order numbers were summarised as "ORD-0000 (1%)". Mostly-unique columns now
-  show examples instead of frequencies.
-
-
+   show examples instead of frequencies.
 
 ## Phase 3 verification
 
 - Engine: 47 tests; every analysis result is checked against an independent pandas
-calculation (contributions to a change sum to exactly 100%)
+  calculation (contributions to a change sum to exactly 100%)
 - AI package: 17 tests with a scripted model: grounding, plan repair, engine-error repair,
-template fallback, AI outages, clarifications
+  template fallback, AI outages, clarifications
 - Web: 16 unit tests, type check, clean production build
 - `phase3_e2e.py` (real engine and PostgreSQL, stand-in model over HTTP): trend, follow-up
-filter, period comparison with contributors, unsupported request, typo repair, rejected
-invented number, saved history, usage rows, cross-workspace access refused. Phase 1 and
-2 suites re-run: pass.
+  filter, period comparison with contributors, unsupported request, typo repair, rejected
+  invented number, saved history, usage rows, cross-workspace access refused. Phase 1 and
+  2 suites re-run: pass.
 - **Not verified here: the real OpenAI model.** Run `npm run eval -w @insight/ai` with your
-key for plan accuracy, numerical accuracy and grounding rate.
-
-
+  key for plan accuracy, numerical accuracy and grounding rate.
 
 ### Issues found and fixed during verification
-
 1. Headline and table rounded the same value differently (4,892 vs 4,892.5) and percents
-  differently (8.0% vs -8%). Engine facts and tables now share one formatting rule.
+   differently (8.0% vs -8%). Engine facts and tables now share one formatting rule.
 2. A region falling more than the total showed "175% of the change" with no explanation.
-  The engine now adds a note when shares exceed 100%.
-
-
+   The engine now adds a note when shares exceed 100%.
 
 ## Phase 4 verification
 
@@ -92,26 +73,49 @@ key for plan accuracy, numerical accuracy and grounding rate.
 - AI package: 18 tests (distribution plans, chart preference stripped before the engine)
 - Web: 24 unit tests, including chart selection rules and CSV export safety
 - `phase4_e2e.py`: line/bar/table switching, a refused pie for a time series, pie by region,
-CSV export equal to pandas totals, valid SVG and PNG files, expand dialog, scatter with
-one point per customer, top-5 filter, histogram bars, diverging colours, dashboard KPIs
-equal to pandas for the latest complete month, pin and unpin, migrations reported current,
-another workspace sees none of it. Phase 1–3 suites re-run: pass.
-
-
+  CSV export equal to pandas totals, valid SVG and PNG files, expand dialog, scatter with
+  one point per customer, top-5 filter, histogram bars, diverging colours, dashboard KPIs
+  equal to pandas for the latest complete month, pin and unpin, migrations reported current,
+  another workspace sees none of it. Phase 1–3 suites re-run: pass.
 
 ### Also in this version
-
 - `localhost` in `DATABASE_URL` now works on Windows (rewritten to 127.0.0.1).
 - Pending migrations show a "database needs updating" page and a 503 from `/api/health`
-instead of query errors.
-
-
+  instead of query errors.
 
 ### Issues found and fixed during verification
-
 1. The dashboard trend ended with a partial month that looked like a drop. Partial months
-  are now flagged by the engine and labelled.
+   are now flagged by the engine and labelled.
 2. Exact numbers were only reachable through hover tooltips. Every chart now has a
-  "Show data" table.
+   "Show data" table.
 3. Tiny scatter previews showed unreadable axis ticks; previews now hide axes.
 
+## Phase 5 verification
+
+- Engine: 67 tests, with planted answers (spike and drop in a weekday pattern, a collapsing
+  region inside seasonal data, a huge order, customers built as Champions / At risk, a real
+  relationship next to noise) and forecasts checked against months they never saw
+- Forecast calibration measured on 360 simulated series (see `ANALYTICS.md`)
+- AI package: 20 tests; web: 27 tests; type check; clean build
+- `phase5_e2e.py`: forecast with ranges and the "too little history" refusal, unusual days
+  (exactly the two planted events), the collapsing region (and only that one), the huge
+  order by file row and order id, correlation, segments, a rising trend, the analyst
+  answering all of these, and another workspace refused. Phase 1–4 suites re-run: pass.
+
+### Issues found and fixed during verification
+1. Monthly summary data (rows dated the 1st) lost its last, complete month, in forecasts and
+   on the dashboard. Partial periods now require finer data that stops early.
+2. A seasonal model was silently dropped when it couldn't fit the earliest backtest window;
+   models are now compared on the windows they can all run.
+3. Forecast ranges ignored bias and were too narrow; they now combine backtest RMSE and the
+   model's own interval, with a seasonal-uncertainty widening (calibration table above).
+4. The first anomaly method absorbed outliers into its own baseline and underestimated noise,
+   hiding a $45,000 order and flagging ordinary days. Replaced with a neighbour baseline that
+   never includes the period being judged.
+5. Flags now also need a meaningful size (not just statistical rarity).
+6. Group anomalies missed a 66% collapse inside seasonal data, then (with shares) flagged the
+   healthy regions; groups are now judged against the typical group's movement.
+7. The trend could say "falling, statistically clear" for growing data because the direction
+   came from an outlier-sensitive line fit; it now uses the matching Theil–Sen slope.
+8. Forms: an empty "All numeric columns" choice and a hidden field were rejected as invalid.
+9. A flat forecast on 23 months of seasonal data now says why seasonality isn't modelled.

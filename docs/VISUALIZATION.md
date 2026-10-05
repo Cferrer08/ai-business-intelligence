@@ -16,6 +16,13 @@ not by the language model, so a chart can never show a value that isn't in the r
 | Period comparison | number cards + diverging bars of each group's change (green up, red down) | table |
 | Distribution | histogram (one bar per value for small whole-number ranges) | table |
 | Overview | number cards | table |
+| Forecast | actual line, dashed forecast, shaded 80% and 95% ranges | table (with the methods tested) |
+| Unusual periods | line with the expected value dashed and red markers on flagged points | table with reasons |
+| Groups that changed | diverging bars of difference from expected | table |
+| Unusual rows | number cards | table with row numbers, ids and reasons |
+| Correlation | coloured matrix | scatter of the strongest pair, table |
+| Customer segments | bars of revenue and customer share | pie, table |
+| Trend | line with the trend line dashed | bar, table |
 
 If the user asks for a chart type ("as a pie chart"), the planner records it and it's used
 only if it's in the "also offered" list; otherwise the chart says why it wasn't used.

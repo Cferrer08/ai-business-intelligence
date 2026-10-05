@@ -29,6 +29,13 @@
       "when": 1790890776027,
       "tag": "0003_phase4_charts",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790976244199,
+      "tag": "0004_phase5_advanced",
+      "breakpoints": true
     }
   ]
 }

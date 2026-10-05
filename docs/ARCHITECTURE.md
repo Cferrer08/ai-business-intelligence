@@ -55,6 +55,7 @@ like the others. See `DATA_ENGINE.md` and `AI_ARCHITECTURE.md`.
 | `ai_requests` | Every model call: purpose, model, tokens, estimated cost, duration, outcome. |
 
 | `charts` | Charts pinned to the dashboard: which analysis result, chart type, top-N. |
+| `forecasts`, `anomalies`, `analytics_runs` | Runs from the Forecasts, Anomalies and Analytics pages: spec sent to the engine and its full result. |
 
 Later phases add tables (reports, forecasts, anomalies, documents, workflows, billing). Each carries
 `workspace_id`, and every query takes that id from `requireWorkspace()`, never from input.

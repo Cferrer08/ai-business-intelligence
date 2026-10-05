@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  Bar, BarChart, Brush, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
+  Area, Bar, BarChart, Brush, CartesianGrid, Cell, ComposedChart, Legend, Line, LineChart, Pie, PieChart,
   ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis, ZAxis,
 } from "recharts";
 import type { ChartSpec, ChartType, Kpi, ValueFormat } from "@/lib/charts/build";
@@ -81,6 +81,7 @@ export function Chart({ spec, type = spec.type, height = 320, hidden, onToggleSe
   const longLabels = data.some((d) => String(d.__x).length > 14) || data.length > 8;
 
   if (type === "kpi") return <KpiCards kpis={spec.kpis} size={compactMode ? "sm" : "md"} />;
+  if (type === "matrix" && spec.matrix) return <Matrix matrix={spec.matrix} compact={compactMode} />;
 
   let chart: React.ReactElement;
   if (type === "line") {
@@ -91,9 +92,51 @@ export function Chart({ spec, type = spec.type, height = 320, hidden, onToggleSe
         <YAxis tick={axisTick} hide={compactMode} tickFormatter={compact} width={56} tickLine={false} axisLine={false} />
         {!compactMode && tooltip}
         {legend}
-        {series.map((s) => <Line key={s.key} dataKey={s.key} name={s.label} stroke={s.color} strokeWidth={2} dot={data.length <= 24 && !compactMode ? { r: 3 } : false} {...anim} />)}
+        {series.map((s) => <Line key={s.key} dataKey={s.key} name={s.label} stroke={s.color} strokeWidth={2} strokeDasharray={s.dashed ? "6 4" : undefined} dot={data.length <= 24 && !compactMode && !s.dashed ? { r: 3 } : false} {...anim} />)}
         {timeBrush && data.length > 12 ? <Brush dataKey="__x" height={22} stroke="#1D5FBF" travellerWidth={8} /> : null}
       </LineChart>
+    );
+  } else if (type === "forecast") {
+    const [actual, fc] = spec.series;
+    chart = (
+      <ComposedChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
+        {!compactMode && <CartesianGrid stroke={GRID} vertical={false} />}
+        <XAxis dataKey="__x" tick={axisTick} hide={compactMode} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={16} />
+        <YAxis tick={axisTick} hide={compactMode} tickFormatter={compact} width={56} tickLine={false} axisLine={false} />
+        {!compactMode && (
+          <Tooltip contentStyle={{ borderRadius: 6, borderColor: "#D7DDE4", fontSize: 13 }}
+            formatter={(v: unknown, name: unknown) => Array.isArray(v) ? [`${fmt(v[0], fc.format)} to ${fmt(v[1], fc.format)}`, String(name)] : [fmt(v, fc.format), String(name)]} />
+        )}
+        {!compactMode && <Legend wrapperStyle={{ fontSize: 13 }} />}
+        <Area dataKey="band95" name="95% range" stroke="none" fill={fc.color} fillOpacity={0.1} {...anim} />
+        <Area dataKey="band80" name="80% range" stroke="none" fill={fc.color} fillOpacity={0.2} {...anim} />
+        <Line dataKey={actual.key} name={actual.label} stroke={actual.color} strokeWidth={2} dot={false} {...anim} />
+        <Line dataKey={fc.key} name={fc.label} stroke={fc.color} strokeWidth={2} strokeDasharray="6 4" dot={!compactMode ? { r: 3 } : false} {...anim} />
+      </ComposedChart>
+    );
+  } else if (type === "anomaly") {
+    const [value, expected] = spec.series;
+    chart = (
+      <ComposedChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
+        {!compactMode && <CartesianGrid stroke={GRID} vertical={false} />}
+        <XAxis dataKey="__x" tick={axisTick} hide={compactMode} tickLine={false} axisLine={{ stroke: GRID }} minTickGap={24} />
+        <YAxis tick={axisTick} hide={compactMode} tickFormatter={compact} width={56} tickLine={false} axisLine={false} />
+        {!compactMode && tooltip}
+        {!compactMode && (
+          <Legend content={() => (
+            <div className="mt-1 flex flex-wrap justify-center gap-4 text-[13px] text-ink-soft">
+              <span className="inline-flex items-center gap-1.5"><span className="inline-block h-0.5 w-4" style={{ background: value.color }} />{value.label}</span>
+              <span className="inline-flex items-center gap-1.5"><span className="inline-block w-4 border-t-2 border-dashed" style={{ borderColor: expected.color }} />{expected.label}</span>
+              <span className="inline-flex items-center gap-1.5"><span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: DOWN }} />Unusual</span>
+            </div>
+          )} />
+        )}
+        <Line dataKey={expected.key} name={expected.label} stroke={expected.color} strokeWidth={1.5} strokeDasharray="5 4" dot={false} {...anim} />
+        <Line dataKey={value.key} name={value.label} stroke={value.color} strokeWidth={1.5} {...anim}
+          dot={(props: any) => props.payload?.flagged != null && Number.isFinite(props.cx)
+            ? <circle key={props.index} className="anomaly-dot" cx={props.cx} cy={props.cy} r={compactMode ? 3 : 5} fill={DOWN} stroke="#fff" strokeWidth={1.5} />
+            : <g key={props.index} />} />
+      </ComposedChart>
     );
   } else if (type === "donut") {
     const s = spec.series[0];
@@ -163,6 +206,46 @@ export function Chart({ spec, type = spec.type, height = 320, hidden, onToggleSe
   return (
     <div style={{ width: "100%", height }}>
       <ResponsiveContainer>{chart}</ResponsiveContainer>
+    </div>
+  );
+}
+
+
+/** Correlation matrix as a coloured grid (blue: move together, orange: opposite). */
+function Matrix({ matrix, compact: small }: { matrix: NonNullable<ChartSpec["matrix"]>; compact?: boolean }) {
+  const cols = matrix.columns;
+  const color = (v: number | null) => {
+    if (v == null) return "#F5F7F9";
+    const a = Math.min(1, Math.abs(v));
+    return v >= 0 ? `rgba(29,95,191,${0.08 + 0.72 * a})` : `rgba(194,65,12,${0.08 + 0.72 * a})`;
+  };
+  return (
+    <div className="overflow-x-auto">
+      <table className="border-separate text-sm" style={{ borderSpacing: 2 }}>
+        <thead>
+          <tr>
+            <th />
+            {cols.map((c) => <th key={c} scope="col" className="max-w-[90px] truncate px-1 pb-1 text-left text-xs font-medium text-ink-muted" title={c}>{c}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {cols.map((a) => (
+            <tr key={a}>
+              <th scope="row" className="max-w-[140px] truncate pr-2 text-left text-xs font-medium text-ink-muted" title={a}>{a}</th>
+              {cols.map((b) => {
+                const v = matrix.values[a]?.[b] ?? null;
+                return (
+                  <td key={b} className={`num text-center ${small ? "h-6 w-10 text-[10px]" : "h-11 w-16"} rounded-sm`} style={{ background: color(v), color: v != null && Math.abs(v) > 0.55 ? "#fff" : "#16202E" }}
+                    title={`${a} and ${b}: ${v == null ? "n/a" : v.toFixed(2)}`}>
+                    {v == null ? "" : v.toFixed(2)}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {!small ? <p className="mt-2 text-xs text-ink-muted">Rank correlation from −1 to 1. Blue: rise together. Orange: move in opposite directions.</p> : null}
     </div>
   );
 }

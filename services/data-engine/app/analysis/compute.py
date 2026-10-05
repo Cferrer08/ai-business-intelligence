@@ -169,6 +169,30 @@ OP_WORDS = {"eq": "=", "neq": "≠", "in": "in", "not_in": "not in", "gt": ">", 
             "between": "between", "contains": "containing"}
 
 
+GRAIN_DAYS = {"day": 1, "week": 7, "month": 28, "quarter": 89, "year": 365}
+
+
+def _pattern_key(d: pd.Timestamp, unit: str):
+    if unit == "week":
+        return d.dayofweek
+    return "end" if d.is_month_end else d.day   # month / quarter / year summaries
+
+
+def is_partial(dates: pd.Series, last_start: pd.Timestamp, unit: str) -> bool:
+    """Is the period starting at last_start incomplete in this data?
+
+    Summary data (one row per period on a consistent day: always the 1st, always month-end,
+    always Monday) has no partial periods, as long as the last row follows the same pattern.
+    Otherwise a period is partial when the data stops before the period ends."""
+    d = dates.dropna().dt.normalize().drop_duplicates().sort_values()
+    if unit != "day" and len(d) >= 3 and float(d.diff().dt.days.median()) >= 0.9 * GRAIN_DAYS[unit]:
+        keys = d.map(lambda x: _pattern_key(x, unit))
+        mode = keys.mode().iloc[0]
+        if (keys == mode).mean() >= 0.8 and _pattern_key(d.iloc[-1], unit) == mode:
+            return False
+    return d.iloc[-1] + pd.Timedelta(days=1) < last_start + UNIT_OFFSET[unit]
+
+
 def _period_window(dates: pd.Series, period: Period) -> tuple[pd.Timestamp, pd.Timestamp, str | None, bool]:
     """Returns (start, end_exclusive, unit, is_partial). Relative periods are anchored on the
     latest date in the data, not today's date, so "last month" means the data's last month."""
@@ -186,7 +210,7 @@ def _period_window(dates: pd.Series, period: Period) -> tuple[pd.Timestamp, pd.T
     unit = period.unit
     start = hi.to_period(GRAIN_FREQ[unit]).start_time.normalize()
     end = start + UNIT_OFFSET[unit]
-    partial = hi.normalize() + pd.Timedelta(days=1) < end
+    partial = is_partial(valid, start, unit)
     if period.kind == "latest_complete" and partial:
         end, start, partial = start, start - UNIT_OFFSET[unit], False
         if end <= lo:
@@ -625,7 +649,11 @@ def run_dashboard(df: pd.DataFrame, columns: list[ColumnRole]) -> dict:
 
 def analyze(df: pd.DataFrame, spec: AnalysisSpec, columns: list[ColumnRole]) -> dict:
     ctx = Context(df, columns)
-    runner = {"aggregate": run_aggregate, "compare_periods": run_compare, "overview": run_overview, "distribution": run_distribution}[spec.type]
+    from .advanced import run_anomalies, run_correlation, run_segmentation, run_trend
+    from .forecast import run_forecast
+    runner = {"aggregate": run_aggregate, "compare_periods": run_compare, "overview": run_overview, "distribution": run_distribution,
+              "forecast": run_forecast, "anomalies": run_anomalies, "correlation": run_correlation,
+              "segmentation": run_segmentation, "trend": run_trend}[spec.type]
     result = runner(ctx, spec)
     result["type"] = spec.type
     result["notes"] = ctx.notes

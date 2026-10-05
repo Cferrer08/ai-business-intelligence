@@ -47,9 +47,12 @@ so adding another provider means implementing one interface.
 | compare_periods | "why did X change", period comparisons | totals for both periods, change, contributors per dimension with share of change |
 | overview | "summarize the business" | totals, distinct customers/orders, date range, latest month vs previous, leaders |
 
+| distribution | "what do order sizes look like" | histogram bins, median, middle half |
+| forecast / anomalies / correlation / segmentation / trend | see `ANALYTICS.md` | per method |
+
 Relative periods ("last month") are anchored on the **latest date in the data**, and
-`latest_complete` skips a partial final month. Forecasts, anomalies, correlation analysis
-and segmentation are answered as "not available yet" until Phase 5.
+`latest_complete` skips a partial final month. Requests outside these types (data from
+other systems, changing data) are answered as unsupported with a reason.
 
 ## Follow-up questions
 
@@ -85,11 +88,10 @@ story: Garden sales in the Northeast collapse in September) and reports:
   second time, without the template
 - latency, tokens and estimated cost
 
-Run it with the engine up (PowerShell):
+Run it with the engine up. It reads `OPENAI_API_KEY`, `OPENAI_MODEL`, `ENGINE_API_KEY` and
+`FASTAPI_URL` from `apps/web/.env.local` (shell variables take precedence):
 
 ```powershell
-$env:OPENAI_API_KEY = "sk-..."
-$env:ENGINE_API_KEY = "dev-engine-key-change-me"
 npm run eval -w @insight/ai
 ```
 

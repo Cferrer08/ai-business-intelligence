@@ -141,5 +141,7 @@ describe("validatePlan", () => {
   it("rejects a non-date time column", () => expect(v((a) => { a.time.column = "region"; })[0]).toContain("not a date"));
   it("rejects sorting by something not in the plan", () => expect(v((a) => { a.sort = { by: "profit", direction: "desc" }; })[0]).toContain("sort.by"));
   it("rejects a distribution with groups", () => expect(v((a) => { a.type = "distribution"; a.time = null; a.period = null; a.comparison = null; }).join()).toContain("no dimensions"));
+  it("requires totals for forecasts", () => expect(v((a) => { a.type = "forecast"; a.dimensions = []; a.period = null; a.comparison = null; a.metrics[0].agg = "mean"; }).join()).toContain("totals or counts"));
+  it("requires a grouping for group anomalies", () => expect(v((a) => { a.type = "anomalies"; a.dimensions = []; a.period = null; a.comparison = null; a.options = { horizon: null, scope: "groups", sensitivity: null }; }).join()).toContain("need one dimension"));
   it("requires periods to have a date column", () => expect(v((a) => { a.type = "aggregate"; a.time = null; }).join()).toContain("period needs time"));
 });

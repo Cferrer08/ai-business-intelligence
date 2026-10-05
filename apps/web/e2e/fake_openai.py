@@ -25,7 +25,7 @@ def find_col(cols, role, concept=None):
 
 def base_analysis(**kw):
     a = {"type": "aggregate", "metrics": [], "ratio": None, "dimensions": [], "time": None, "filters": [],
-         "period": None, "comparison": None, "sort": None, "limit": None, "chart": None}
+         "period": None, "comparison": None, "sort": None, "limit": None, "chart": None, "options": None}
     a.update(kw)
     return a
 
@@ -54,8 +54,19 @@ def plan(user):
     if "scatter" in q:
         return {"action": "analyze", "message": None, "title": "Revenue and units by customer", "analysis": base_analysis(
             metrics=[metric, {"column": qty, "agg": "sum", "label": "Units"}], dimensions=[cust], limit=50, chart="scatter")}
+    if "crm" in q:
+        return {"action": "unsupported", "message": "I can only analyse datasets uploaded to this workspace.", "title": "Outside data", "analysis": None}
     if "forecast" in q:
-        return {"action": "unsupported", "message": "Forecasting isn't available yet.", "title": "Forecast", "analysis": None}
+        return {"action": "analyze", "message": None, "title": "Revenue forecast", "analysis": base_analysis(
+            type="forecast", metrics=[metric], time={"column": date, "grain": "month"}, options={"horizon": 3, "scope": None, "sensitivity": None})}
+    if "unusual days" in q:
+        return {"action": "analyze", "message": None, "title": "Unusual days", "analysis": base_analysis(
+            type="anomalies", metrics=[metric], time={"column": date, "grain": "day"}, options={"horizon": None, "scope": "time", "sensitivity": None})}
+    if "segment" in q:
+        return {"action": "analyze", "message": None, "title": "Customer segments", "analysis": base_analysis(type="segmentation")}
+    if "growing" in q:
+        return {"action": "analyze", "message": None, "title": "Revenue trend", "analysis": base_analysis(
+            type="trend", metrics=[metric], time={"column": date, "grain": "month"})}
     if "summarize" in q:
         return {"action": "analyze", "message": None, "title": "Dataset summary", "analysis": base_analysis(type="overview")}
     if "only show the northeast" in q and prev:

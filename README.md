@@ -3,10 +3,17 @@
 Upload business data, ask questions in plain English, and get answers calculated by a Python
 data engine and explained by an AI analyst.
 
-The product is built in phases. **This repository is at the end of Phase 4 (Visualization).**
+The product is built in phases. **This repository is at the end of Phase 5 (Advanced analytics).**
 See [`docs/PHASES.md`](docs/PHASES.md) for what is done and what comes next.
 
 ## What works today
+
+**Phase 5: advanced analytics**
+- Forecasts with 80%/95% ranges, using the simplest method that tests well on your history
+- Anomalies: unusual days or months, unusual transactions, groups that changed unusually,
+  each with the reason it was flagged
+- Correlation, customer segments (RFM) and trend analysis
+- Forecasts, Anomalies and Analytics pages, plus the same through the AI Analyst
 
 **Phase 4: visualization**
 - Every analysis gets a chart chosen from its calculated results: line, bar, diverging
@@ -138,13 +145,13 @@ python apps/web/e2e/phase2_e2e.py
 Phase 3's suite uses a stand-in model so it's free and repeatable. Start the stand-in in a
 third window with `python apps/web/e2e/fake_openai.py 8765`, run the app with
 `OPENAI_API_KEY=test-openai-key` and `OPENAI_BASE_URL=http://127.0.0.1:8765/v1`, then run
-`python apps/web/e2e/phase3_e2e.py`, then `python apps/web/e2e/phase4_e2e.py` with the same
+`python apps/web/e2e/phase3_e2e.py`, then `phase4_e2e.py` and `phase5_e2e.py` with the same
 setup. To score the real model, see `docs/AI_ARCHITECTURE.md`.
 
 To empty the database before a rerun:
 
 ```powershell
-docker compose -f infrastructure/docker-compose.yml exec postgres psql -U insight -d insight_ai -c "truncate users, workspaces, workspace_members, sessions, audit_logs, datasets, dataset_columns, dataset_profiles, conversations, messages, analysis_requests, analysis_results, ai_requests, charts cascade"
+docker compose -f infrastructure/docker-compose.yml exec postgres psql -U insight -d insight_ai -c "truncate users, workspaces, workspace_members, sessions, audit_logs, datasets, dataset_columns, dataset_profiles, conversations, messages, analysis_requests, analysis_results, ai_requests, charts, forecasts, anomalies, analytics_runs cascade"
 ```
 
 Phase 1 covers sign-up validation, onboarding, rename, sign-out, revoked sessions,
@@ -159,5 +166,6 @@ workspace can neither open nor delete the dataset. Screenshots go to `e2e-shots/
 - [`docs/DATA_ENGINE.md`](docs/DATA_ENGINE.md)
 - [`docs/AI_ARCHITECTURE.md`](docs/AI_ARCHITECTURE.md)
 - [`docs/VISUALIZATION.md`](docs/VISUALIZATION.md)
+- [`docs/ANALYTICS.md`](docs/ANALYTICS.md)
 - [`docs/SECURITY.md`](docs/SECURITY.md)
 - [`docs/PHASES.md`](docs/PHASES.md)

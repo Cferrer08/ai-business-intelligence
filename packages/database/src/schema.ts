@@ -237,6 +237,30 @@ export const charts = pgTable("charts", {
   index("charts_workspace_created_idx").on(t.workspaceId, t.createdAt),
 ]);
 
+// ---------------------------------------------------------------------------
+// Phase 5: runs from the Forecasts, Anomalies and Analytics pages. Each stores the exact
+// spec sent to the engine and the engine's full result, so a run can be reopened as it was.
+// ---------------------------------------------------------------------------
+
+const runColumns = () => ({
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  datasetId: uuid("dataset_id").notNull().references(() => datasets.id, { onDelete: "cascade" }),
+  createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+  title: varchar("title", { length: 160 }).notNull(),
+  spec: jsonb("spec").notNull(),
+  result: jsonb("result").notNull(),
+  durationMs: integer("duration_ms").notNull(),
+  createdAt: ts("created_at").notNull().defaultNow(),
+});
+
+export const forecasts = pgTable("forecasts", runColumns(), (t) => [index("forecasts_workspace_created_idx").on(t.workspaceId, t.createdAt)]);
+export const anomalies = pgTable("anomalies", runColumns(), (t) => [index("anomalies_workspace_created_idx").on(t.workspaceId, t.createdAt)]);
+export const analyticsRuns = pgTable("analytics_runs", {
+  ...runColumns(),
+  kind: varchar("kind", { length: 20 }).notNull(), // correlation | segmentation | trend
+}, (t) => [index("analytics_runs_workspace_created_idx").on(t.workspaceId, t.createdAt)]);
+
 export type Dataset = typeof datasets.$inferSelect;
 export type DatasetColumn = typeof datasetColumns.$inferSelect;
 

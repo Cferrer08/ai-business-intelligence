@@ -61,8 +61,17 @@ class Sort(BaseModel):
     direction: Literal["asc", "desc"] = "desc"
 
 
+class Options(BaseModel):
+    horizon: int | None = Field(default=None, ge=1, le=104)            # forecast: periods ahead
+    scope: Literal["time", "records", "groups"] | None = None           # anomalies
+    sensitivity: Literal["low", "normal", "high"] | None = None         # anomalies
+
+
+ADVANCED = ("forecast", "anomalies", "correlation", "segmentation", "trend")
+
+
 class AnalysisSpec(BaseModel):
-    type: Literal["aggregate", "compare_periods", "overview", "distribution"]
+    type: Literal["aggregate", "compare_periods", "overview", "distribution", "forecast", "anomalies", "correlation", "segmentation", "trend"]
     metrics: list[Metric] = Field(default_factory=list, max_length=3)
     ratio: Ratio | None = None
     dimensions: list[str] = Field(default_factory=list, max_length=2)
@@ -72,11 +81,14 @@ class AnalysisSpec(BaseModel):
     comparison: Literal["previous_period", "same_period_last_year"] | None = None
     sort: Sort | None = None
     limit: int | None = Field(default=None, ge=1, le=500)
+    options: Options | None = None
 
     @model_validator(mode="after")
     def by_type(self):
-        if self.type in ("aggregate", "compare_periods", "distribution") and not self.metrics:
+        if self.type in ("aggregate", "compare_periods", "distribution", "forecast", "trend") and not self.metrics:
             raise ValueError(f"{self.type} needs at least one metric")
+        if self.type in ("forecast", "trend") and not self.time:
+            raise ValueError(f"{self.type} needs a date column")
         if self.type == "compare_periods" and not (self.time and self.period and self.comparison):
             raise ValueError("compare_periods needs time, period and comparison")
         if self.ratio and max(self.ratio.numerator, self.ratio.denominator) >= len(self.metrics):

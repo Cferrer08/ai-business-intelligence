@@ -74,3 +74,34 @@ describe("chartCsv", () => {
     expect(csv[2]).toBe('"S, Inc",3');
   });
 });
+
+describe("advanced chart specs", () => {
+  it("forecast joins history and forecast at the last actual point, with ranges", () => {
+    const res = { type: "forecast", facts: [], notes: [], labels: [], grain: "month", summary: { metric: "Revenue", format: "money" },
+      history: [{ period: "2026-01-01T00:00:00", value: 10 }, { period: "2026-02-01T00:00:00", value: 12 }],
+      forecast: [{ period: "2026-03-01T00:00:00", value: 13, lo80: 11, hi80: 15, lo95: 10, hi95: 16 }] } as any;
+    const s = buildChart(res, null);
+    expect(s.type).toBe("forecast");
+    expect(s.data).toHaveLength(3);
+    expect(s.data[1]).toMatchObject({ actual: 12, forecast: 12 });
+    expect(s.data[2]).toMatchObject({ forecast: 13, lo80: 11, hi95: 16 });
+    expect(s.series.find((x) => x.key === "forecast")?.dashed).toBe(true);
+  });
+
+  it("time anomalies mark only flagged points", () => {
+    const res = { type: "anomalies", scope: "time", facts: [], notes: [], labels: [], summary: { metric: "Revenue", format: "money" },
+      series: [{ label: "Mar 1", value: 10, expected: 10, flagged: false }, { label: "Mar 2", value: 40, expected: 11, flagged: true }] } as any;
+    const s = buildChart(res, null);
+    expect(s.type).toBe("anomaly");
+    expect(s.data.map((d) => d.flagged)).toEqual([null, 40]);
+  });
+
+  it("correlation offers matrix and scatter", () => {
+    const res = { type: "correlation", facts: [], notes: [], labels: [], columns: ["a", "b"], matrix: { a: { a: 1, b: 0.9 }, b: { a: 0.9, b: 1 } },
+      scatter: { x: "a", y: "b", points: [{ x: 1, y: 2 }] } } as any;
+    const s = buildChart(res, null);
+    expect(s.type).toBe("matrix");
+    expect(s.options).toContain("scatter");
+    expect(s.matrix?.values.a.b).toBe(0.9);
+  });
+});
