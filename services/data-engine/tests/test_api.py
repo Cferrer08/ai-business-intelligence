@@ -119,3 +119,11 @@ def test_document_extract_and_delete(client):
     assert client.delete(f"/v1/workspaces/{ws}/documents/{doc}", headers={"X-Engine-Key": KEY}).json() == {"deleted": True}
     assert client.post(f"/v1/workspaces/{ws}/documents/{uuid.uuid4()}/extract",
                        files={"file": ("a.pdf", io.BytesIO(pdf))}, data={"filename": "a.pdf"}).status_code == 401
+
+
+def test_report_render_endpoint(client):
+    body = {"title": "Report", "sections": [{"title": "Key figures", "paragraphs": ["Hello"]}]}
+    r = client.post("/v1/reports/render", headers={"X-Engine-Key": KEY}, json=body)
+    assert r.status_code == 200 and r.headers["content-type"] == "application/pdf" and r.content[:5] == b"%PDF-"
+    assert client.post("/v1/reports/render", json=body).status_code == 401
+    assert client.post("/v1/reports/render", headers={"X-Engine-Key": KEY}, json={"title": "x" * 500}).status_code == 422

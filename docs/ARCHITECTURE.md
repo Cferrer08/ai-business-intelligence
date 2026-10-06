@@ -57,6 +57,7 @@ like the others. See `DATA_ENGINE.md` and `AI_ARCHITECTURE.md`.
 | `charts` | Charts pinned to the dashboard: which analysis result, chart type, top-N. |
 | `documents` | Uploaded documents: status, pages, passage and flagged counts, warnings. |
 | `document_chunks` | Passage text, pages, heading, flagged; ids match the Pinecone vector ids. |
+| `reports` | Saved business reports: content snapshot (section results + summary), status, share-token hash. |
 | `forecasts`, `anomalies`, `analytics_runs` | Runs from the Forecasts, Anomalies and Analytics pages: spec sent to the engine and its full result. |
 
 Later phases add tables (reports, forecasts, anomalies, documents, workflows, billing). Each carries

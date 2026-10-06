@@ -304,6 +304,37 @@ export const documentChunks = pgTable("document_chunks", {
 }, (t) => [
   uniqueIndex("document_chunks_document_index_key").on(t.documentId, t.chunkIndex),
   index("document_chunks_workspace_idx").on(t.workspaceId),
+  // Full-text search alongside vectors: exact product names, SKUs and terms that
+  // embeddings handle poorly ("cordless drill", "TL-1001").
+  index("document_chunks_fts_idx").using("gin", sql`to_tsvector('english', ${t.text})`),
+]);
+
+// ---------------------------------------------------------------------------
+// Phase 7: business reports. A report is a saved snapshot: every section's engine result
+// plus the summary text. Sharing uses a random token; only its SHA-256 is stored, and
+// clearing it revokes the link.
+// ---------------------------------------------------------------------------
+
+export const reportStatus = pgEnum("report_status", ["generating", "ready", "failed"]);
+
+export const reports = pgTable("reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  datasetId: uuid("dataset_id").notNull().references(() => datasets.id, { onDelete: "cascade" }),
+  createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+  title: varchar("title", { length: 200 }).notNull(),
+  status: reportStatus("status").notNull().default("generating"),
+  content: jsonb("content"),
+  errorMessage: varchar("error_message", { length: 500 }),
+  shareTokenHash: char("share_token_hash", { length: 64 }),
+  sharedAt: ts("shared_at"),
+  durationMs: integer("duration_ms"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow().$onUpdate(() => new Date()),
+  deletedAt: ts("deleted_at"),
+}, (t) => [
+  index("reports_workspace_created_idx").on(t.workspaceId, t.createdAt),
+  uniqueIndex("reports_share_token_key").on(t.shareTokenHash),
 ]);
 
 export type Dataset = typeof datasets.$inferSelect;

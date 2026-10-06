@@ -7,7 +7,7 @@
  */
 import { buildContext, type DatasetContext } from "./context";
 import { checkDocumentNotes, checkGrounding, renderInsight, type Fact, type RenderedInsight } from "./grounding";
-import type { Passage } from "./embeddings";
+import { questionTerms, termMatches, type Passage } from "./embeddings";
 import { LlmError, type LlmClient, type LlmUsage } from "./llm";
 import { documentAnswerJsonSchema, documentAnswerSchema, insightJsonSchema, insightSchema, planJsonSchema, planSchema, type AnalysisSpec, type Insight, type Plan } from "./plan";
 import { DOCUMENT_ANSWER_SYSTEM, documentAnswerUser, INTERPRETER_SYSTEM, interpreterUser, PLANNER_SYSTEM, plannerUser } from "./prompts";
@@ -107,9 +107,20 @@ export async function runAnalyst(input: AnalystInput, deps: AnalystDeps): Promis
     let { plan: p, problems } = await plan(deps, ctx, input, undefined, passages);
     deps.onEvent?.({ type: "status", step: "validating" });
     if (problems.length) ({ plan: p, problems } = await plan(deps, ctx, input, problems, passages));
-    if (!p || problems.length) return { status: "failed", code: "invalid_plan", message: MESSAGES.invalid_plan };
+    // When the plan can't proceed but the documents clearly match the question, try answering
+    // from the documents before giving up (a document fact can look like a data question).
+    const docsMatch = hasDocumentEvidence(input.question, passages);
+    const viaDocuments = async (_title: string, otherwise: AnalystOutcome): Promise<AnalystOutcome> => {
+      if (!docsMatch) return otherwise;
+      // The abandoned plan's title ("Clarification") doesn't describe a document answer.
+      const answer = await answerFromDocuments(input, deps, "From your documents", passages, searchFailed);
+      return answer.status === "succeeded" ? answer : otherwise;
+    };
+    if (!p || problems.length) return viaDocuments("From your documents", { status: "failed", code: "invalid_plan", message: MESSAGES.invalid_plan });
     if (p.action === "documents") return answerFromDocuments(input, deps, p.title, passages, searchFailed);
-    if (p.action !== "analyze") return { status: p.action === "clarify" ? "clarification" : "unsupported", title: p.title, message: p.message ?? "" };
+    if (p.action !== "analyze") {
+      return viaDocuments(p.title, { status: p.action === "clarify" ? "clarification" : "unsupported", title: p.title, message: p.message ?? "" });
+    }
 
     // 2. Compute, with one repair attempt for problems the engine explained
     let analysis = p.analysis!;
@@ -119,10 +130,11 @@ export async function runAnalyst(input: AnalystInput, deps: AnalystDeps): Promis
     try {
       result = await deps.execute(toEngineSpec(analysis));
     } catch (err) {
-      if (!(err instanceof AnalysisExecutionError) || !FIXABLE.has(err.code)) throw err;
-      const repaired = await plan(deps, ctx, input, [`The engine rejected the plan: ${err.message}`]);
+      if (!(err instanceof AnalysisExecutionError)) throw err;
+      if (!FIXABLE.has(err.code)) return viaDocuments(p.title, { status: "failed", code: err.code, message: err.message, plan: analysis });
+      const repaired = await plan(deps, ctx, input, [`The engine rejected the plan: ${err.message}`], passages);
       if (!repaired.plan || repaired.problems.length || repaired.plan.action !== "analyze") {
-        return { status: "failed", code: err.code, message: err.message, plan: analysis };
+        return viaDocuments(p.title, { status: "failed", code: err.code, message: err.message, plan: analysis });
       }
       p = repaired.plan;
       analysis = p.analysis!;
@@ -192,4 +204,13 @@ async function answerFromDocuments(input: AnalystInput, deps: AnalystDeps, title
       result, insight, rendered: renderInsight(insight, []), insightSource: "model" };
   }
   return { status: "not_found", title, message: "The documents searched don't clearly answer that. Try rephrasing, or check the Knowledge page." };
+}
+
+
+/** Do the retrieved passages clearly contain the question's distinctive words? */
+export function hasDocumentEvidence(question: string, passages: Passage[]): boolean {
+  if (!passages.length) return false;
+  const terms = questionTerms(question);
+  const need = Math.min(2, terms.length);
+  return need > 0 && passages.some((p) => termMatches(`${p.documentName} ${p.heading ?? ""} ${p.text}`, terms) >= need);
 }

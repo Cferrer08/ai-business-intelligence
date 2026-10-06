@@ -3,10 +3,15 @@
 Upload business data, ask questions in plain English, and get answers calculated by a Python
 data engine and explained by an AI analyst.
 
-The product is built in phases. **This repository is at the end of Phase 6 (Knowledge base).**
+The product is built in phases. **This repository is at the end of Phase 7 (Business reports).**
 See [`docs/PHASES.md`](docs/PHASES.md) for what is done and what comes next.
 
 ## What works today
+
+**Phase 7: business reports**
+- One click: executive summary, key figures, trends, what changed, products, regions,
+  customers, anomalies, forecast, risks and recommended actions, with charts
+- PDF export (rendered server-side), key figures as CSV, saved reports, revocable share links
 
 **Phase 6: knowledge base**
 - Upload PDFs, Word and text documents; search them by meaning on the Knowledge page
@@ -158,12 +163,13 @@ third window with `python apps/web/e2e/fake_openai.py 8765`, run the app with
 `python apps/web/e2e/phase3_e2e.py`, then `phase4_e2e.py` and `phase5_e2e.py` with the same
 setup. For `phase6_e2e.py` also start `python apps/web/e2e/fake_pinecone.py 8766` and run the
 app with `PINECONE_API_KEY=test-pinecone-key`, `PINECONE_INDEX=insight`,
-`PINECONE_CONTROL_URL=http://127.0.0.1:8766` and `RAG_MIN_SCORE=0.1`. To score the real model, see `docs/AI_ARCHITECTURE.md`.
+`PINECONE_CONTROL_URL=http://127.0.0.1:8766` and `RAG_MIN_SCORE=0.1`. `phase7_e2e.py` uses the
+same setup as Phase 3. To score the real model, see `docs/AI_ARCHITECTURE.md`.
 
 To empty the database before a rerun:
 
 ```powershell
-docker compose -f infrastructure/docker-compose.yml exec postgres psql -U insight -d insight_ai -c "truncate users, workspaces, workspace_members, sessions, audit_logs, datasets, dataset_columns, dataset_profiles, conversations, messages, analysis_requests, analysis_results, ai_requests, charts, forecasts, anomalies, analytics_runs, documents, document_chunks cascade"
+docker compose -f infrastructure/docker-compose.yml exec postgres psql -U insight -d insight_ai -c "truncate users, workspaces, workspace_members, sessions, audit_logs, datasets, dataset_columns, dataset_profiles, conversations, messages, analysis_requests, analysis_results, ai_requests, charts, forecasts, anomalies, analytics_runs, documents, document_chunks, reports cascade"
 ```
 
 Phase 1 covers sign-up validation, onboarding, rename, sign-out, revoked sessions,
@@ -180,5 +186,6 @@ workspace can neither open nor delete the dataset. Screenshots go to `e2e-shots/
 - [`docs/VISUALIZATION.md`](docs/VISUALIZATION.md)
 - [`docs/ANALYTICS.md`](docs/ANALYTICS.md)
 - [`docs/KNOWLEDGE.md`](docs/KNOWLEDGE.md)
+- [`docs/REPORTS.md`](docs/REPORTS.md)
 - [`docs/SECURITY.md`](docs/SECURITY.md)
 - [`docs/PHASES.md`](docs/PHASES.md)

@@ -64,6 +64,34 @@ export interface Passage {
   score: number;
 }
 
+const STOP = new Set("the a an of to and or for in on at by with is are was were be been our we you your what whats how who whom does do did this that these those it its as from can could should would will about which when where why there their they them than then into over under per any all some much many more most less".split(" "));
+
+/** Distinctive words of a question (no stop words, at least 3 characters). */
+export function questionTerms(q: string): string[] {
+  return [...new Set((q.toLowerCase().match(/[a-z0-9][a-z0-9-]{2,}/g) ?? []).filter((w) => !STOP.has(w)))].slice(0, 12);
+}
+
+export function termMatches(text: string, terms: string[]): number {
+  const t = text.toLowerCase();
+  return terms.filter((w) => t.includes(w.replace(/s$/, ""))).length;
+}
+
+/** The lines of a passage that best match the question (plus its first line for context),
+ * in original order, so a planner sees the drill row of a price list, not only its intro. */
+export function focusedExcerpt(text: string, question: string, max = 700): string {
+  const terms = questionTerms(question);
+  const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+  if (text.length <= max || !terms.length) return text.slice(0, max);
+  const scored = lines.map((l, i) => ({ l, i, s: termMatches(l, terms) }));
+  const keep = new Set<number>([0]);
+  let len = lines[0].length;
+  for (const x of [...scored].filter((x) => x.s > 0).sort((a, b) => b.s - a.s || a.i - b.i)) {
+    if (len + x.l.length + 1 > max) break;
+    keep.add(x.i); len += x.l.length + 1;
+  }
+  return [...keep].sort((a, b) => a - b).map((i, k, arr) => (k > 0 && i !== arr[k - 1] + 1 ? "… " : "") + lines[i]).join("\n");
+}
+
 export function pageLabel(start: number | null, end: number | null): string | null {
   if (start == null) return null;
   return end != null && end !== start ? `pp. ${start}–${end}` : `p. ${start}`;

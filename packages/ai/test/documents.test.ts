@@ -80,3 +80,45 @@ describe("documents alongside a calculation", () => {
     if (out.status === "succeeded") expect(out.insight.caveats.join()).toContain("couldn't be searched");
   });
 });
+
+describe("document fallback and focused excerpts", () => {
+  const priceList: Passage = {
+    id: "d1", chunkId: "c9", documentId: "doc9", documentName: "Northside Price List 2026", page: "pp. 1–2", heading: "Price List … Electrical",
+    text: ["Northside Supply Co. Price List 2026", "Effective January 1, 2026. Prices in US dollars, excluding sales tax.", "How to read this list",
+           "Each product shows the list price for one unit and the contractor price for approved contractor accounts.", "Tools",
+           "SKU Product List price Contractor price", "TL-1001 Cordless drill 20V kit $129.00 $112.00", "TL-1002 Impact driver 20V (tool only) $99.00 $86.00",
+           ...Array.from({ length: 20 }, (_, i) => `GD-20${10 + i} Garden item number ${i} $${20 + i}.00 $${15 + i}.00`)].join("\n"),
+    score: 0.12,
+  };
+  const q = "What's the contractor price of the cordless drill?";
+  const drillAnswer = { found: true, statements: [{ text: "TL-1001 Cordless drill 20V kit: contractor price $112.00 (list price $129.00).", sources: ["d1"] }] };
+
+  it("the planner sees the matching row, not just the opening lines", async () => {
+    const { focusedExcerpt } = await import("../src/embeddings");
+    const ex = focusedExcerpt(priceList.text, q);
+    expect(ex).toContain("TL-1001 Cordless drill 20V kit $129.00 $112.00");
+    expect(ex.startsWith("Northside Supply Co. Price List 2026")).toBe(true);
+    expect(ex.length).toBeLessThanOrEqual(760);
+  });
+
+  it("answers from the documents when the planner asks for clarification instead", async () => {
+    const clarify = { action: "clarify", message: "Which column holds prices?", title: "Price", analysis: null };
+    const out = await runAnalyst({ ...input, question: q }, { llm: fakeLlm([clarify, drillAnswer]).client, execute: engine(compareResult), retrieve: async () => [priceList] });
+    expect(out.status).toBe("succeeded");
+    if (out.status === "succeeded") expect(out.insight.document_notes[0].text).toContain("$112.00");
+  });
+
+  it("answers from the documents when the data plan can't be built", async () => {
+    const wrong = structuredClone(comparePlan);
+    wrong.analysis.metrics[0].column = "contractor_price";
+    const out = await runAnalyst({ ...input, question: q }, { llm: fakeLlm([wrong, wrong, drillAnswer]).client, execute: engine(compareResult), retrieve: async () => [priceList] });
+    expect(out.status).toBe("succeeded");
+  });
+
+  it("keeps the clarifying question when the documents don't match", async () => {
+    const clarify = { action: "clarify", message: "Gross or net?", title: "Revenue", analysis: null };
+    const unrelated = { ...priceList, text: "Shipping takes a week in winter." };
+    const out = await runAnalyst({ ...input, question: "How did revenue do?" }, { llm: fakeLlm([clarify]).client, execute: engine(compareResult), retrieve: async () => [unrelated] });
+    expect(out).toMatchObject({ status: "clarification", message: "Gross or net?" });
+  });
+});

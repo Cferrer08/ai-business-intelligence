@@ -332,15 +332,26 @@ def run_aggregate(ctx: Context, spec: AnalysisSpec) -> dict:
         for col in value_cols:
             facts.add(f"{name}: {col}", row[col], kinds[col])
 
-    if time_key and not spec.dimensions and len(table) >= 2:
-        first, last = table.iloc[0], table.iloc[-1]
+    # A final period still in progress is shown but kept out of trend figures, so a partial
+    # month doesn't read as a drop.
+    trend_table = table
+    if time_key and not spec.dimensions and len(table) >= 2 and spec.time.grain:
+        t_all = ctx.require(spec.time.column).loc[df.index]
+        last_start = pd.Timestamp(table.iloc[-1][time_key])
+        if is_partial(t_all, last_start, spec.time.grain):
+            trend_table = table.iloc[:-1]
+            ctx.notes.append(f"{_bucket_label(last_start, spec.time.grain)} is incomplete in the data, so it's shown but left out of the trend figures.")
+            table = table.assign(__partial=[False] * (len(table) - 1) + [True])
+    if time_key and not spec.dimensions and len(trend_table) >= 2:
+        table_for_facts = trend_table
+        first, last = table_for_facts.iloc[0], table_for_facts.iloc[-1]
         v0, v1 = first[value_cols[0]], last[value_cols[0]]
         facts.add("First period", _bucket_label(first[time_key], spec.time.grain), "text")
         facts.add("Last period", _bucket_label(last[time_key], spec.time.grain), "text")
         if pd.notna(v0) and v0:
             facts.add(f"Change in {value_cols[0]} from first to last period", 100 * (v1 - v0) / abs(v0), "percent")
-        hi = table.loc[table[value_cols[0]].idxmax()]
-        lo = table.loc[table[value_cols[0]].idxmin()]
+        hi = table_for_facts.loc[table_for_facts[value_cols[0]].idxmax()]
+        lo = table_for_facts.loc[table_for_facts[value_cols[0]].idxmin()]
         facts.add(f"Highest {value_cols[0]} period", _bucket_label(hi[time_key], spec.time.grain), "text")
         facts.add(f"Highest {value_cols[0]}", hi[value_cols[0]], kinds[value_cols[0]])
         facts.add(f"Lowest {value_cols[0]} period", _bucket_label(lo[time_key], spec.time.grain), "text")
@@ -356,7 +367,10 @@ def run_aggregate(ctx: Context, spec: AnalysisSpec) -> dict:
         chart = {"kind": "line", "x": time_key, "y": value_cols[:2]}
     elif spec.dimensions:
         chart = {"kind": "bar", "x": spec.dimensions[0], "y": value_cols[:1]}
-    return {"table": {"columns": columns, "rows": _rows(table, [c["key"] for c in columns])},
+    rows_out = _rows(table, [c["key"] for c in columns])
+    if "__partial" in table.columns:
+        rows_out[-1]["partial"] = True
+    return {"table": {"columns": columns, "rows": rows_out},
             "facts": facts.items, "rows_considered": int(len(df)), "groups_total": int(total_groups), "chart": chart}
 
 

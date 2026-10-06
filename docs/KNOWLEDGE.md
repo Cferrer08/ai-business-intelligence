@@ -41,10 +41,16 @@ flagged passage, so it can't take surrounding legitimate text out of AI answers.
 
 ## Search and isolation
 
-1. Embed the question.
-2. Query Pinecone in the workspace's namespace with a `workspace_id` filter.
-3. Re-load every returned id from PostgreSQL, requiring the same workspace, a ready
-   document and no deletion. Only then is text used.
+Search is **hybrid**: meaning (Pinecone vectors) plus exact words (PostgreSQL full-text,
+which handles product names and SKUs that embeddings miss), merged by reciprocal rank fusion.
+
+1. Embed the question; query Pinecone in the workspace's namespace with a `workspace_id` filter.
+2. In parallel, full-text search the workspace's passages.
+3. Re-load every id from PostgreSQL, requiring the same workspace, a ready document and no
+   deletion. Only then is text used.
+4. For the AI, a passage is relevant if its embedding score reaches `RAG_MIN_SCORE` or it
+   contains at least two of the question's distinctive words. If either search fails, the
+   other still works.
 
 Deleting a document hides it from search immediately, then removes its vectors, passages
 and file.

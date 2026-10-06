@@ -6,3 +6,4 @@ export * from "./llm";
 export * from "./analyst";
 export * from "./embeddings";
 export { templateInsight } from "./fallback";
+export * from "./report";

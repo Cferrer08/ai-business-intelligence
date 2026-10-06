@@ -70,6 +70,14 @@ are logged and never block the user's request.
 - Instruction-like passages are flagged and never sent to a model; see `KNOWLEDGE.md` for
   the full prompt-injection defences. Pinecone and OpenAI keys stay on the server.
 
+## Reports (Phase 7)
+- Reports are scoped to the workspace like everything else; PDF and CSV routes check the
+  workspace and return 404 otherwise.
+- Share links: 256-bit random tokens, stored only as SHA-256, revocable, read-only pages
+  marked `noindex`, rate-limited PDF downloads. A shared page shows the report snapshot and
+  nothing else from the workspace.
+- The PDF renderer receives finished text and figures only and escapes all text.
+
 ## Not yet in place (scheduled)
 Email verification and password reset, CSRF review for API routes, Content-Security-Policy,
 distributed rate limiting and monitoring (Phase 10).

@@ -8,8 +8,8 @@
 | 4 | Visualization | **Done, verified** |
 | 5 | Anomalies, forecasting, correlation, segmentation | **Done, verified** |
 | 6 | RAG knowledge base (Pinecone) | **Done, verified with stand-ins** |
-| 7 | Reports and PDF export | Next |
-| 8 | Workflows and daily briefing | Planned |
+| 7 | Reports and PDF export | **Done, verified** |
+| 8 | Workflows and daily briefing | Next |
 | 9 | Stripe billing and usage limits | Planned |
 | 10 | Production hardening, monitoring, deployment | Planned |
 
@@ -151,3 +151,33 @@ reading to pdfminer.six), prose with "$35" or "10%" treated as table rows, a tab
 label-only row merged into its header, passages ending on a heading, tables split across
 passages losing their header row, and one injected sentence excluding a whole passage of
 legitimate text. Engine tests: 81.
+
+### Fix: questions about facts inside documents ("contractor price of the cordless drill")
+The question wasn't answered although the price list was uploaded. Three causes, all fixed:
+1. Embedding search is weak on product names and SKUs. Search is now hybrid: Pinecone plus
+   PostgreSQL full-text, merged by reciprocal rank fusion; a passage containing two or more of
+   the question's distinctive words counts as relevant even with a low embedding score.
+2. The planner saw only a passage's first 300 characters (the price list's introduction).
+   It now sees the lines that match the question.
+3. A document question routed to data analysis had no way back. If the planner asks for
+   clarification, calls the question unsupported, or produces a data plan that can't run, and
+   the documents clearly match, the analyst answers from the documents first.
+Covered by AI tests (30) and `phase6_e2e.py`, which uploads the real price list and asks the question.
+
+## Phase 7 verification
+
+- Engine: 86 tests, including the PDF renderer (all sections as text, escaping of untrusted
+  text, pagination) and the render endpoint
+- AI package: 34 tests: grounded report summaries, retry, template fallback with no invented
+  recommendations
+- `phase7_e2e.py`: a report from two years of orders with every expected section, the
+  missing product column listed under "Not included", total revenue equal to pandas, a rising
+  trend, the Northeast collapse flagged, the PDF downloaded and read back, the key-figures CSV,
+  a share link opened signed-out (read-only, PDF works, only the token's hash stored), sharing
+  turned off and the link refused, another workspace refused. Phase 1–6 suites re-run: pass.
+
+### Issues found and fixed during verification
+1. Monthly trends (reports and the analyst) included a month still in progress, which read
+   as a drop and distorted the first-to-last change. It's now labelled "(partial)" and left
+   out of trend figures.
+2. The PDF repeated each key figure as a bullet under the cards; chart axes used a serif font.

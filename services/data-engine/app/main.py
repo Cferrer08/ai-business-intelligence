@@ -26,6 +26,8 @@ from .config import ENGINE_VERSION, load_settings
 from .errors import EngineError, LimitExceeded
 from .ingest import detect_format, read_dataset
 from .documents import detect_doc_format, extract_document
+from .report_pdf import ReportPayload, render_report
+from fastapi.responses import Response
 from .analysis.compute import analyze as run_analysis
 from .analysis.compute import run_dashboard
 from .analysis.models import AnalyzeRequest, DashboardRequest
@@ -64,6 +66,15 @@ async def engine_error_handler(_: Request, exc: EngineError):
 async def unexpected_error_handler(request: Request, exc: Exception):
     log(logging.ERROR, "engine.unhandled_error", path=request.url.path, error=repr(exc))
     return JSONResponse(status_code=500, content={"detail": {"code": "internal_error", "message": "The data engine hit an unexpected error."}})
+
+
+@app.post("/v1/reports/render", dependencies=[Depends(require_engine_key)])
+def render(payload: ReportPayload) -> Response:
+    """Lay out a computed report as a PDF. Receives text and figures only; reads no data."""
+    started = time.perf_counter()
+    pdf = render_report(payload)
+    log(logging.INFO, "report.rendered", sections=len(payload.sections), bytes=len(pdf), ms=int((time.perf_counter() - started) * 1000))
+    return Response(content=pdf, media_type="application/pdf")
 
 
 @app.get("/health", response_model=HealthResponse)

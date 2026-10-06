@@ -172,3 +172,13 @@ def test_dashboard_without_money_columns_explains():
     df = pd.DataFrame({"name": ["a", "b"]})
     out = run_dashboard(df, [ColumnRole(name="name", logical_type="categorical", role="category")])
     assert out["kpis"] == [] and "No revenue" in out["notes"][0]
+
+
+
+def test_monthly_trend_flags_partial_last_month(typed):
+    df, roles = typed   # data ends Feb 4, 2027
+    res = analyze(df, spec(type="aggregate", metrics=[{"column": "revenue", "agg": "sum", "label": "Revenue"}],
+                           time={"column": "order_date", "grain": "month"}), roles)
+    assert res["table"]["rows"][-1].get("partial") is True
+    assert fact(res, "Last period")["display"] == "January 2027"   # trend figures stop at the last complete month
+    assert any("February 2027 is incomplete" in n for n in res["notes"])
