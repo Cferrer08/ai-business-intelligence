@@ -152,3 +152,19 @@ export async function renderReportPdf(payload: unknown): Promise<ArrayBuffer> {
   if (!res.ok) throw await rejection(res);
   return res.arrayBuffer();
 }
+
+export async function briefingData(workspaceId: string, datasetId: string, body: { unit: "day" | "week" | "month"; columns: ColumnRoleInput[]; today: string }): Promise<EngineResult> {
+  const res = await call(`/v1/workspaces/${workspaceId}/datasets/${datasetId}/briefing`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), timeoutMs: 60_000 });
+  if (res.ok) return (await res.json()) as EngineResult;
+  const detail = res.status === 422 ? ((await res.json().catch(() => ({}))) as { detail?: { code?: string; message?: string } }).detail : undefined;
+  if (detail?.message) throw new AnalysisExecutionError(detail.code ?? "briefing", detail.message);
+  throw await rejection(res);
+}
+
+export async function alertRows(workspaceId: string, datasetId: string, body: Record<string, unknown>): Promise<{ matches: number; rows: Record<string, unknown>[]; condition: string; columns: string[] }> {
+  const res = await call(`/v1/workspaces/${workspaceId}/datasets/${datasetId}/alert`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), timeoutMs: 30_000 });
+  if (res.ok) return res.json();
+  const detail = res.status === 422 ? ((await res.json().catch(() => ({}))) as { detail?: { code?: string; message?: string } }).detail : undefined;
+  if (detail?.message) throw new AnalysisExecutionError(detail.code ?? "alert", detail.message);
+  throw await rejection(res);
+}

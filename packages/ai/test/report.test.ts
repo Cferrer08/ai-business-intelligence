@@ -35,3 +35,21 @@ describe("report summary", () => {
     expect(checkGrounding(asInsight, compareResult.facts, compareResult.labels)).toEqual([]);
   });
 });
+
+describe("briefing template", () => {
+  it("summarises KPIs and movers with placeholders only", () => {
+    const facts = [
+      { id: "f1", label: "Period covered", kind: "text", value: "Tuesday, Sep 29, 2026", display: "Tuesday, Sep 29, 2026" },
+      { id: "f2", label: "Revenue in the period", kind: "money", value: 230, display: "230.00" },
+      { id: "f3", label: "Revenue change (absolute percent)", kind: "percent", value: 23.3, display: "23.3%" },
+      { id: "f4", label: "Revenue direction", kind: "text", value: "down", display: "down" },
+      { id: "f5", label: "region NE: direction", kind: "text", value: "down", display: "down" },
+      { id: "f6", label: "region NE: change (absolute percent)", kind: "percent", value: 70, display: "70.0%" },
+    ] as any;
+    const t = templateSummary([{ key: "briefing", title: "Briefing", type: "briefing", facts, notes: [], labels: ["NE"] }]);
+    expect(t.executive_summary[0]).toBe("Revenue: {f2}, {f4} {f3} for {f1}.");
+    expect(t.risks[0]).toBe("region NE {f5} {f6}.");
+    const asInsight = { headline: t.executive_summary.join(" "), what_happened: t.risks, why: [], recommendations: [], caveats: [], document_notes: [] };
+    expect(checkGrounding(asInsight, facts, ["NE"])).toEqual([]);
+  });
+});

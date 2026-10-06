@@ -182,3 +182,15 @@ def test_monthly_trend_flags_partial_last_month(typed):
     assert res["table"]["rows"][-1].get("partial") is True
     assert fact(res, "Last period")["display"] == "January 2027"   # trend figures stop at the last complete month
     assert any("February 2027 is incomplete" in n for n in res["notes"])
+
+
+def test_weeks_run_monday_to_sunday():
+    import pandas as pd
+    from app.analysis.models import ColumnRole
+    days = pd.date_range("2026-09-07", "2026-09-27", freq="D")   # Mon Sep 7 .. Sun Sep 27: three full weeks
+    df = pd.DataFrame({"date": days, "revenue": 1.0})
+    roles = [ColumnRole(name="date", logical_type="datetime", role="time"), ColumnRole(name="revenue", logical_type="numeric", role="monetary")]
+    res = analyze(df, spec(type="aggregate", metrics=[{"column": "revenue", "agg": "sum", "label": "Revenue"}], time={"column": "date", "grain": "week"}), roles)
+    rows = res["table"]["rows"]
+    assert [r["date"][:10] for r in rows] == ["2026-09-07", "2026-09-14", "2026-09-21"]   # each week starts on a Monday
+    assert [r["Revenue"] for r in rows] == [7, 7, 7]                                     # seven days in every week

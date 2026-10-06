@@ -11,7 +11,8 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "db:generate": "npm run generate -w @insight/database",
-    "db:migrate": "npm run migrate -w @insight/database"
+    "db:migrate": "npm run migrate -w @insight/database",
+    "scheduler": "node scripts/scheduler.mjs"
   },
   "engines": {
     "node": ">=20.12"

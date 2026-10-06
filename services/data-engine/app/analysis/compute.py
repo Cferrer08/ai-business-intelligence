@@ -20,7 +20,8 @@ from .models import AnalysisSpec, ColumnRole, Filter, Metric, Period  # noqa: F4
 
 MAX_GROUPS_RETURNED = 500
 DEFAULT_LIMIT = 25
-GRAIN_FREQ = {"day": "D", "week": "W-MON", "month": "M", "quarter": "Q", "year": "Y"}
+# Weeks run Monday to Sunday: pandas anchors weekly periods on their END day ("W-SUN").
+GRAIN_FREQ = {"day": "D", "week": "W-SUN", "month": "M", "quarter": "Q", "year": "Y"}
 UNIT_OFFSET = {"day": pd.DateOffset(days=1), "week": pd.DateOffset(weeks=1), "month": pd.DateOffset(months=1),
                "quarter": pd.DateOffset(months=3), "year": pd.DateOffset(years=1)}
 

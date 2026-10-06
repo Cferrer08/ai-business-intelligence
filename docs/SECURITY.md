@@ -78,6 +78,12 @@ are logged and never block the user's request.
   nothing else from the workspace.
 - The PDF renderer receives finished text and figures only and escapes all text.
 
+## Workflows (Phase 8)
+- The scheduler endpoint requires `CRON_SECRET` (16+ characters, constant-time comparison) and
+  refuses to run without one. It reads nothing from the request but the secret.
+- Workflows, runs and notifications are workspace-scoped; notifications are per user.
+- Failing workflows pause after five failures, so a broken job can't run forever.
+
 ## Not yet in place (scheduled)
 Email verification and password reset, CSRF review for API routes, Content-Security-Policy,
 distributed rate limiting and monitoring (Phase 10).

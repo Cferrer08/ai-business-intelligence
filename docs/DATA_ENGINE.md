@@ -90,6 +90,8 @@ All endpoints except `/health` require the `X-Engine-Key` header (shared secret)
 | POST | `/v1/workspaces/{ws}/datasets/{id}/analyze` | run an analysis spec (Phase 3) |
 | POST | `/v1/workspaces/{ws}/datasets/{id}/dashboard` | dashboard KPIs, monthly series, movers (Phase 4) |
 | POST | `/v1/workspaces/{ws}/documents/{id}/extract` | validate a document and return its passages (Phase 6) |
+| POST | `/v1/workspaces/{ws}/datasets/{id}/briefing` | business briefing for a day, week or month (Phase 8) |
+| POST | `/v1/workspaces/{ws}/datasets/{id}/alert` | rows meeting a condition (Phase 8) |
 | POST | `/v1/reports/render` | lay out a computed report as PDF (Phase 7) |
 | DELETE | `/v1/workspaces/{ws}/datasets/{id}` | delete stored files |
 | GET | `/health` | liveness |

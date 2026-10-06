@@ -57,6 +57,9 @@ like the others. See `DATA_ENGINE.md` and `AI_ARCHITECTURE.md`.
 | `charts` | Charts pinned to the dashboard: which analysis result, chart type, top-N. |
 | `documents` | Uploaded documents: status, pages, passage and flagged counts, warnings. |
 | `document_chunks` | Passage text, pages, heading, flagged; ids match the Pinecone vector ids. |
+| `workflows` | Scheduled jobs: type, schedule (local hour, weekday/day, time zone), config, next run, lock, failure count. |
+| `workflow_executions` | One row per run, unique per (workflow, scheduled time): status, output, linked report. |
+| `notifications` | Per-user in-app notifications with read state. |
 | `reports` | Saved business reports: content snapshot (section results + summary), status, share-token hash. |
 | `forecasts`, `anomalies`, `analytics_runs` | Runs from the Forecasts, Anomalies and Analytics pages: spec sent to the engine and its full result. |
 

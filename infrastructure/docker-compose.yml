@@ -38,6 +38,20 @@ services:
     cap_drop: [ALL]
     restart: unless-stopped
 
+  # Calls the web app's scheduler endpoint every minute so workflows run on time.
+  # The web app runs on your machine (npm run dev), reached via host.docker.internal.
+  scheduler:
+    image: curlimages/curl:8.10.1
+    environment:
+      CRON_SECRET: ${CRON_SECRET:-dev-cron-secret-change-me}
+      APP_URL: ${APP_URL:-http://host.docker.internal:3000}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - 'while true; do curl -s -o /dev/null -w "%{http_code}\n" -X POST -H "Authorization: Bearer $$CRON_SECRET" "$$APP_URL/api/cron/tick"; sleep 60; done'
+    restart: unless-stopped
+
 volumes:
   pgdata:
   engine-data:

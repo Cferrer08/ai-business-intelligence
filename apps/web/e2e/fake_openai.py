@@ -207,6 +207,10 @@ class Handler(BaseHTTPRequestHandler):
             dirn = pick(lambda l: l == "Direction")
             pct = pick(lambda l: l.startswith("Change in") and l.endswith("(absolute percent)") and ":" not in l)
             summary = [f"Total revenue over the period was {{{total}}}."] if total else []
+            rev, per = pick(lambda l: l == "Revenue in the period"), pick(lambda l: l == "Period covered")
+            if rev and per:
+                rdir, rpct = pick(lambda l: l == "Revenue direction"), pick(lambda l: l == "Revenue change (absolute percent)")
+                summary.append(f"Revenue was {{{rev}}} for {{{per}}}" + (f", {{{rdir}}} {{{rpct}}}." if rdir and rpct else "."))
             if cur and dirn and pct:
                 summary.append(f"Revenue {{{dirn}}} by {{{pct}}} in {{{cur}}}.")
             out = {"executive_summary": summary or ["The report covers the uploaded data."],

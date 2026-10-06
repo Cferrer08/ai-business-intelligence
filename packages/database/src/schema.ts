@@ -337,6 +337,76 @@ export const reports = pgTable("reports", {
   uniqueIndex("reports_share_token_key").on(t.shareTokenHash),
 ]);
 
+// ---------------------------------------------------------------------------
+// Phase 8: workflows (scheduled briefings, reviews, reports, alerts), their runs, and
+// in-app notifications. A run is unique per (workflow, scheduled time), so two scheduler
+// ticks can never execute the same occurrence twice.
+// ---------------------------------------------------------------------------
+
+export const workflowType = pgEnum("workflow_type", ["briefing", "weekly_review", "report", "alert"]);
+export const workflowFrequency = pgEnum("workflow_frequency", ["daily", "weekly", "monthly"]);
+export const executionStatus = pgEnum("execution_status", ["running", "succeeded", "failed", "skipped"]);
+
+export const workflows = pgTable("workflows", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  datasetId: uuid("dataset_id").notNull().references(() => datasets.id, { onDelete: "cascade" }),
+  createdById: uuid("created_by_id").references(() => users.id, { onDelete: "set null" }),
+  name: varchar("name", { length: 120 }).notNull(),
+  type: workflowType("type").notNull(),
+  frequency: workflowFrequency("frequency").notNull(),
+  hour: smallint("hour").notNull(),                 // local hour, 0-23
+  weekday: smallint("weekday"),                     // 0 = Sunday ... 6 = Saturday (weekly)
+  dayOfMonth: smallint("day_of_month"),             // 1-28 (monthly)
+  timezone: varchar("timezone", { length: 64 }).notNull(),
+  config: jsonb("config").notNull().default(sql`'{}'::jsonb`),
+  enabled: boolean("enabled").notNull().default(true),
+  nextRunAt: ts("next_run_at").notNull(),
+  lockedUntil: ts("locked_until"),
+  lastRunAt: ts("last_run_at"),
+  lastStatus: executionStatus("last_status"),
+  consecutiveFailures: smallint("consecutive_failures").notNull().default(0),
+  createdAt: ts("created_at").notNull().defaultNow(),
+  updatedAt: ts("updated_at").notNull().defaultNow().$onUpdate(() => new Date()),
+  deletedAt: ts("deleted_at"),
+}, (t) => [
+  index("workflows_due_idx").on(t.enabled, t.nextRunAt),
+  index("workflows_workspace_idx").on(t.workspaceId, t.createdAt),
+  check("workflows_hour_range", sql`${t.hour} between 0 and 23`),
+  check("workflows_weekday_range", sql`${t.weekday} is null or ${t.weekday} between 0 and 6`),
+  check("workflows_dom_range", sql`${t.dayOfMonth} is null or ${t.dayOfMonth} between 1 and 28`),
+]);
+
+export const workflowExecutions = pgTable("workflow_executions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workflowId: uuid("workflow_id").notNull().references(() => workflows.id, { onDelete: "cascade" }),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  trigger: varchar("trigger", { length: 12 }).notNull(),   // schedule | manual
+  scheduledFor: ts("scheduled_for").notNull(),
+  status: executionStatus("status").notNull().default("running"),
+  output: jsonb("output"),
+  reportId: uuid("report_id").references(() => reports.id, { onDelete: "set null" }),
+  errorMessage: varchar("error_message", { length: 500 }),
+  startedAt: ts("started_at").notNull().defaultNow(),
+  finishedAt: ts("finished_at"),
+  durationMs: integer("duration_ms"),
+}, (t) => [
+  uniqueIndex("workflow_executions_occurrence_key").on(t.workflowId, t.scheduledFor),
+  index("workflow_executions_workflow_idx").on(t.workflowId, t.startedAt),
+]);
+
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  workspaceId: uuid("workspace_id").notNull().references(() => workspaces.id, { onDelete: "cascade" }),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  kind: varchar("kind", { length: 30 }).notNull(),          // briefing | alert | report | workflow_failed | workflow_paused
+  title: varchar("title", { length: 200 }).notNull(),
+  body: text("body").notNull(),
+  link: varchar("link", { length: 300 }),
+  readAt: ts("read_at"),
+  createdAt: ts("created_at").notNull().defaultNow(),
+}, (t) => [index("notifications_user_unread_idx").on(t.userId, t.workspaceId, t.readAt, t.createdAt)]);
+
 export type Dataset = typeof datasets.$inferSelect;
 export type DatasetColumn = typeof datasetColumns.$inferSelect;
 

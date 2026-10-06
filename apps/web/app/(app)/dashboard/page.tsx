@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { analysisRequests, and, auditLogs, count, db, desc, eq, inArray, users, workspaceMembers } from "@insight/database";
+import { analysisRequests, and, auditLogs, count, db, desc, eq, inArray, users, workflowExecutions, workflows, workspaceMembers } from "@insight/database";
+import type { EngineResult, ReportSummary } from "@insight/ai";
+import { BriefingView } from "@/components/workflows/BriefingView";
 import { PageHeader } from "@/components/app/PageHeader";
 import { KpiCards } from "@/components/charts/Chart";
 import { MiniChart, PinnedChart, TrendChart } from "@/components/dashboard/DashboardCharts";
@@ -36,6 +38,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       .where(and(eq(auditLogs.workspaceId, workspace.id), inArray(auditLogs.action, Object.keys(ACTIVITY_LABEL))))
       .orderBy(desc(auditLogs.createdAt)).limit(5),
   ]);
+
+  const [latestBriefing] = await db.select({ e: workflowExecutions, name: workflows.name, wid: workflows.id }).from(workflowExecutions)
+    .innerJoin(workflows, eq(workflows.id, workflowExecutions.workflowId))
+    .where(and(eq(workflowExecutions.workspaceId, workspace.id), eq(workflowExecutions.status, "succeeded"), inArray(workflows.type, ["briefing", "weekly_review"])))
+    .orderBy(desc(workflowExecutions.startedAt)).limit(1);
+  const briefOut = latestBriefing?.e.output as { briefing?: EngineResult & Record<string, any>; summary?: ReportSummary } | undefined;
 
   // Overview: computed by the data engine from the selected dataset.
   const selected = eligible.find((d) => d.id === requested) ?? eligible[0];
@@ -79,6 +87,16 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
       <div className="space-y-10 px-6 py-8 lg:px-10">
         {denied ? <p role="alert" className="rounded border border-caution/30 bg-caution/5 px-4 py-2.5 text-sm text-caution">Your role in this workspace doesn&apos;t allow that action.</p> : null}
+
+        {briefOut?.briefing && briefOut.summary ? (
+          <section aria-labelledby="briefing" className="rounded-lg border border-line bg-paper-raised p-5">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 id="briefing" className="text-lg font-semibold">Latest briefing</h2>
+              <Link href={`/workflows/${latestBriefing.wid}`} className="text-sm font-semibold text-signal hover:underline">{latestBriefing.name}</Link>
+            </div>
+            <div className="mt-3"><BriefingView briefing={briefOut.briefing} summary={briefOut.summary} compact /></div>
+          </section>
+        ) : null}
 
         <section aria-labelledby="overview">
           <div className="flex flex-wrap items-baseline justify-between gap-2">

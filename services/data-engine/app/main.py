@@ -30,6 +30,7 @@ from .report_pdf import ReportPayload, render_report
 from fastapi.responses import Response
 from .analysis.compute import analyze as run_analysis
 from .analysis.compute import run_dashboard
+from .analysis.briefing import AlertRequest, BriefingRequest, run_alert_rows, run_briefing
 from .analysis.models import AnalyzeRequest, DashboardRequest
 from .profiling.profile import profile_dataframe
 from .schemas import DeleteResponse, HealthResponse, IngestResponse
@@ -219,6 +220,16 @@ def delete_document(request: Request, workspace_id: UUID, document_id: UUID) -> 
     existed = directory.exists()
     shutil.rmtree(directory, ignore_errors=True)
     return DeleteResponse(deleted=existed)
+
+
+@app.post("/v1/workspaces/{workspace_id}/datasets/{dataset_id}/briefing", dependencies=[Depends(require_engine_key)])
+def briefing(request: Request, workspace_id: UUID, dataset_id: UUID, body: BriefingRequest) -> dict:
+    return run_briefing(_load_frame(request.app.state.settings, workspace_id, dataset_id), body)
+
+
+@app.post("/v1/workspaces/{workspace_id}/datasets/{dataset_id}/alert", dependencies=[Depends(require_engine_key)])
+def alert(request: Request, workspace_id: UUID, dataset_id: UUID, body: AlertRequest) -> dict:
+    return run_alert_rows(_load_frame(request.app.state.settings, workspace_id, dataset_id), body)
 
 
 @app.delete("/v1/workspaces/{workspace_id}/datasets/{dataset_id}", response_model=DeleteResponse,

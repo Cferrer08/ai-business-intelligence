@@ -61,6 +61,23 @@ export function reportUser(sections: ReportSectionInput[], repair?: string[]) {
 export function templateSummary(sections: ReportSectionInput[]): ReportSummary {
   const summary: string[] = [];
   const risks: string[] = [];
+  const brief = sections.find((s) => s.key === "briefing");
+  if (brief) {
+    const f = (label: string) => brief.facts.find((x) => x.label === label);
+    const period = f("Period covered");
+    for (const name of ["Revenue", "Orders", "Average order value"]) {
+      const v = f(`${name} in the period`), pct = f(`${name} change (absolute percent)`), dir = f(`${name} direction`);
+      if (v && pct && dir) summary.push(`${name}: {${v.id}}, {${dir.id}} {${pct.id}}${name === "Revenue" && period ? ` for {${period.id}}` : ""}.`);
+      else if (v) summary.push(`${name}: {${v.id}}.`);
+    }
+    for (const m of brief.facts.filter((x) => x.label.endsWith(": change (absolute percent)")).slice(0, 3)) {
+      const name = m.label.split(":")[0];
+      const dir = f(`${name}: direction`);
+      (dir?.value === "down" ? risks : summary).push(`${name} {${dir?.id}} {${m.id}}.`);
+    }
+    const unusual = f("Unusual days in the period");
+    if (unusual && Number(unusual.value) > 0) risks.push(`{${unusual.id}} unusual day(s) in the period.`);
+  }
   const order = ["overview", "change_drivers", "trend", "forecast", "anomalies_groups"];
   for (const key of order) {
     const s = sections.find((x) => x.key === key);

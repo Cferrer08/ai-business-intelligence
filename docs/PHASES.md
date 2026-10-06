@@ -9,8 +9,8 @@
 | 5 | Anomalies, forecasting, correlation, segmentation | **Done, verified** |
 | 6 | RAG knowledge base (Pinecone) | **Done, verified with stand-ins** |
 | 7 | Reports and PDF export | **Done, verified** |
-| 8 | Workflows and daily briefing | Next |
-| 9 | Stripe billing and usage limits | Planned |
+| 8 | Workflows and daily briefing | **Done, verified** |
+| 9 | Stripe billing and usage limits | Next |
 | 10 | Production hardening, monitoring, deployment | Planned |
 
 ## Phase 1 verification
@@ -181,3 +181,23 @@ Covered by AI tests (30) and `phase6_e2e.py`, which uploads the real price list 
    as a drop and distorted the first-to-last change. It's now labelled "(partial)" and left
    out of trend figures.
 2. The PDF repeated each key figure as a bullet under the cards; chart axes used a serif font.
+
+## Phase 8 verification
+
+- Engine: 93 tests, including briefings (same-weekday comparison, weekly and monthly periods,
+  stale data), row-condition alerts, and Monday-to-Sunday weeks
+- Web: 33 tests, including schedules across both daylight-saving changes, skipped and repeated
+  hours, and other time zones; AI: 35 tests including the briefing summary template
+- `phase8_e2e.py`: the tick refuses a missing or wrong secret; a daily briefing created, run,
+  notified and shown on the dashboard, with the out-of-date warning; a scheduled run through the
+  tick moving the next run forward; **two simultaneous ticks running the occurrence once**; a
+  revenue-drop alert triggering and not re-notifying on unchanged data; a low-stock alert on an
+  inventory file listing exactly the right SKUs; a weekly review producing a report; a broken
+  workflow paused after five failures with a notification; another workspace refused.
+  Phase 1–7 suites re-run: pass.
+
+### Issues found and fixed during verification
+1. **Weeks ran Tuesday to Monday everywhere** (analyst, anomalies, forecasts): pandas' "W-MON"
+   means weeks *ending* Monday. Weeks now run Monday to Sunday ("W-SUN"), with a test.
+2. A schedule at an hour skipped by the spring DST change resolved an hour early; it now runs
+   just after the jump, and a repeated autumn hour runs once.

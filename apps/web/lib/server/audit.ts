@@ -18,7 +18,11 @@ export type AuditAction =
   | "report.generate"
   | "report.share"
   | "report.unshare"
-  | "report.delete";
+  | "report.delete"
+  | "workflow.create"
+  | "workflow.pause"
+  | "workflow.resume"
+  | "workflow.delete";
 
 export async function audit(entry: {
   action: AuditAction;
