@@ -127,6 +127,28 @@ with sync_playwright() as p:
     expect(note.locator("[data-fact]")).to_have_count(0)                          # ...never styled as a calculated fact
     a.screenshot(path=str(SHOTS / "p6-3-analyst.png"), full_page=True)
 
+    # 4b. A fact inside a price-list table: "What's the contractor price of the cordless drill?"
+    # The stand-in planner answers this with a clarifying question, like a model treating it as
+    # a data question; the analyst must fall back to the documents and cite the price row.
+    a.goto(B + "/knowledge")
+    a.set_input_files("input[type=file]", str(Path(__file__).parent / "fixtures" / "Northside Price List 2026.pdf"))
+    a.wait_for_url("**/knowledge/*", timeout=90_000)
+    expect(a.get_by_text("TL-1001 Cordless drill 20V kit $129.00 $112.00")).to_be_visible()   # the row reads on one line
+    found = a.request.get(B + "/api/documents/search?q=contractor price of the cordless drill").json()["results"]
+    top = next(r for r in found if r["documentName"] == "Northside Price List 2026")
+    assert top["source"] in ("keyword", "both") and top["matchedTerms"] >= 3, top     # found by exact words too
+    a.goto(B + "/analyst")
+    a.fill("#question", "What's the contractor price of the cordless drill?")
+    a.get_by_role("button", name="Ask", exact=True).click()
+    a.wait_for_url("**/analyst/*", timeout=90_000)
+    card = a.locator("article").last
+    expect(card).to_contain_text("Answer from your documents")
+    expect(card.locator("h3")).to_have_text("What's the contractor price of the cordless drill?")   # not the abandoned "Clarification"
+    expect(card.locator("[data-doc-note]").first).to_contain_text("$112.00")
+    card.get_by_text("Sources").click()
+    expect(card).to_contain_text("Northside Price List 2026")
+    a.screenshot(path=str(SHOTS / "p6-4-price-question.png"), full_page=True)
+
     # 5. The injected passage never reached the model
     s = stats("http://127.0.0.1:8765/__stats")
     assert s["prompts"] > 0 and s["injection_seen"] == 0, s

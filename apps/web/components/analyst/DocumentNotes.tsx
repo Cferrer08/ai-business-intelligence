@@ -24,7 +24,7 @@ export function DocumentNotes({ notes, passages, title }: { notes: DocumentNote[
           {cited.map((p, i) => (
             <li key={p.id} className="rounded border border-line bg-paper-raised px-3 py-2">
               <p className="text-xs font-semibold">[{i + 1}] {p.documentName}{p.page ? `, ${p.page}` : ""}{p.heading ? ` · ${p.heading}` : ""}</p>
-              <p className="mt-1 text-xs text-ink-soft">{p.text}</p>
+              <p className="mt-1 max-h-48 overflow-y-auto whitespace-pre-line text-xs text-ink-soft">{p.text}</p>
             </li>
           ))}
         </ol>

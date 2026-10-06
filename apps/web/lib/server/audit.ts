@@ -14,7 +14,11 @@ export type AuditAction =
   | "dataset.upload_failed"
   | "dataset.delete"
   | "document.upload"
-  | "document.delete";
+  | "document.delete"
+  | "report.generate"
+  | "report.share"
+  | "report.unshare"
+  | "report.delete";
 
 export async function audit(entry: {
   action: AuditAction;

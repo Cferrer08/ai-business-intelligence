@@ -80,7 +80,7 @@ export function buildChart(result: EngineResult, plan: AnalysisSpec | null): Cha
     } else if (time && dims.length === 0) {
       spec = {
         ...base, type: "line", options: ["line", "bar", "table"], xLabel: time.label, xIsTime: true, series: series(metrics),
-        data: rows.map((row) => ({ __x: timeLabel(row[time.key], time.grain), ...Object.fromEntries(metrics.map((m) => [m.key, row[m.key]])) })),
+        data: rows.map((row) => ({ __x: timeLabel(row[time.key], time.grain) + (row.partial ? " (partial)" : ""), ...Object.fromEntries(metrics.map((m) => [m.key, row[m.key]])) })),
       };
     } else if ((time && dims.length === 1) || dims.length === 2) {
       const x = time ?? dims[0];

@@ -1,7 +1,7 @@
 // Sidebar sections and the phase in which each becomes functional.
 // Sections without a page yet render an honest "not built yet" screen instead of mock data.
 /** Highest phase that is built. Sections from later phases show an honest placeholder. */
-export const CURRENT_PHASE = 6;
+export const CURRENT_PHASE = 7;
 
 export interface NavItem {
   href: string;

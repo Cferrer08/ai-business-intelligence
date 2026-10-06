@@ -1,5 +1,5 @@
 import "server-only";
-import { and, db, documentChunks, documents, eq, inArray, isNull } from "@insight/database";
+import { and, db, documentChunks, documents, eq, inArray, isNull, sql } from "@insight/database";
 import { createOpenAiEmbedder, pageLabel, type Embedder, type Passage } from "@insight/ai";
 import { recordAiUsage } from "./ai";
 import { logger } from "./logger";
@@ -98,49 +98,108 @@ async function queryVectors(workspaceId: string, vector: number[], topK: number)
 export interface SearchResult {
   chunkId: string; documentId: string; documentName: string; page: string | null; heading: string | null;
   text: string; score: number; flagged: boolean;
+  matchedTerms: number;            // distinct question words found in the passage
+  source: "vector" | "keyword" | "both";
 }
 
-/** Semantic search over this workspace's ready documents. */
+const STOP = new Set("the a an of to and or for in on at by with is are was were be been our we you your what whats how who whom does do did this that these those it its as from can could should would will about which when where why there their they them than then into over under per any all some much many more most less".split(" "));
+
+/** Distinctive words of a question, lower-cased (no stop words, at least 3 letters). */
+export function queryTerms(q: string): string[] {
+  return [...new Set((q.toLowerCase().match(/[a-z0-9][a-z0-9-]{2,}/g) ?? []).filter((w) => !STOP.has(w)))].slice(0, 12);
+}
+
+function countMatches(text: string, terms: string[]): number {
+  const t = text.toLowerCase();
+  return terms.filter((w) => t.includes(w.replace(/s$/, ""))).length;
+}
+
+/** Full-text search in PostgreSQL over this workspace's ready documents. */
+async function keywordHits(workspaceId: string, terms: string[], limit: number): Promise<{ chunkId: string; rank: number }[]> {
+  const safe = terms.map((w) => w.replace(/[^a-z0-9]/g, "")).filter((w) => w.length >= 3);
+  if (!safe.length) return [];
+  const tsquery = safe.join(" | ");
+  const rows = await db.execute(sql`
+    select c.id as chunk_id, ts_rank_cd(to_tsvector('english', c.text), to_tsquery('english', ${tsquery})) as rank
+    from document_chunks c join documents d on d.id = c.document_id
+    where c.workspace_id = ${workspaceId} and d.workspace_id = ${workspaceId} and d.status = 'ready' and d.deleted_at is null
+      and to_tsvector('english', c.text) @@ to_tsquery('english', ${tsquery})
+    order by rank desc limit ${limit}`);
+  return (rows.rows as { chunk_id: string; rank: number }[]).map((r) => ({ chunkId: r.chunk_id, rank: Number(r.rank) }));
+}
+
+/**
+ * Hybrid search over this workspace's ready documents: Pinecone vectors (meaning) plus
+ * PostgreSQL full-text (exact words such as product names and SKUs), merged by reciprocal
+ * rank fusion. Every id is re-checked against PostgreSQL and the workspace before use.
+ */
 export async function searchKnowledge(workspaceId: string, userId: string, query: string, opts: { includeFlagged: boolean; topK?: number }): Promise<SearchResult[]> {
+  const topK = opts.topK ?? TOP_K;
+  const terms = queryTerms(query);
   const embedder = getEmbedder();
-  let vec: number[];
-  try {
-    const { vectors, usage } = await embedder.embed([query]);
-    vec = vectors[0];
-    await recordAiUsage({ workspaceId, userId, analysisRequestId: null, purpose: "embed_query", model: embedder.model, usage, succeeded: true });
-  } catch (err) {
-    await recordAiUsage({ workspaceId, userId, analysisRequestId: null, purpose: "embed_query", model: embedder.model, usage: undefined, succeeded: false, errorCode: (err as { code?: string }).code });
-    throw err;
-  }
-  const hits = await queryVectors(workspaceId, vec, opts.topK ?? TOP_K);
-  if (!hits.length) return [];
-  // Re-check every id against PostgreSQL and the workspace; only ready, undeleted documents.
+  const vectorPart = (async () => {
+    try {
+      const { vectors, usage } = await embedder.embed([query]);
+      await recordAiUsage({ workspaceId, userId, analysisRequestId: null, purpose: "embed_query", model: embedder.model, usage, succeeded: true });
+      return await queryVectors(workspaceId, vectors[0], topK);
+    } catch (err) {
+      await recordAiUsage({ workspaceId, userId, analysisRequestId: null, purpose: "embed_query", model: embedder.model, usage: undefined, succeeded: false, errorCode: (err as { code?: string }).code });
+      throw err;
+    }
+  })();
+  const [vec, kw] = await Promise.allSettled([vectorPart, keywordHits(workspaceId, terms, topK)]);
+  if (vec.status === "rejected" && kw.status === "rejected") throw vec.reason;
+  const vHits = vec.status === "fulfilled" ? vec.value : [];
+  const kHits = kw.status === "fulfilled" ? kw.value : [];
+  if (vec.status === "rejected") logger.warn("knowledge.vector_search_failed", { err: String(vec.reason) });
+
+  const fused = new Map<string, { rrf: number; score: number; inVec: boolean; inKw: boolean }>();
+  vHits.forEach((h, i) => fused.set(h.chunkId, { rrf: 1 / (60 + i), score: h.score, inVec: true, inKw: false }));
+  kHits.forEach((h, i) => {
+    const cur = fused.get(h.chunkId) ?? { rrf: 0, score: 0, inVec: false, inKw: false };
+    fused.set(h.chunkId, { ...cur, rrf: cur.rrf + 1 / (60 + i), inKw: true });
+  });
+  if (!fused.size) return [];
+
   const rows = await db
     .select({ chunk: documentChunks, documentName: documents.name })
     .from(documentChunks)
     .innerJoin(documents, eq(documents.id, documentChunks.documentId))
     .where(and(
-      inArray(documentChunks.id, hits.map((h) => h.chunkId)),
+      inArray(documentChunks.id, [...fused.keys()]),
       eq(documentChunks.workspaceId, workspaceId),
       eq(documents.workspaceId, workspaceId),
       eq(documents.status, "ready"),
       isNull(documents.deletedAt),
     ));
-  const byId = new Map(rows.map((r) => [r.chunk.id, r]));
-  return hits
-    .map((h) => ({ h, r: byId.get(h.chunkId) }))
-    .filter((x): x is { h: Hit; r: NonNullable<typeof x.r> } => Boolean(x.r) && (opts.includeFlagged || !x.r!.chunk.flagged))
-    .map(({ h, r }) => ({
-      chunkId: r.chunk.id, documentId: r.chunk.documentId, documentName: r.documentName,
-      page: pageLabel(r.chunk.pageStart, r.chunk.pageEnd), heading: r.chunk.heading, text: r.chunk.text, score: h.score, flagged: r.chunk.flagged,
-    }));
+  return rows
+    .filter((r) => opts.includeFlagged || !r.chunk.flagged)
+    .map((r) => {
+      const f = fused.get(r.chunk.id)!;
+      return {
+        chunkId: r.chunk.id, documentId: r.chunk.documentId, documentName: r.documentName,
+        page: pageLabel(r.chunk.pageStart, r.chunk.pageEnd), heading: r.chunk.heading, text: r.chunk.text, flagged: r.chunk.flagged,
+        score: f.score, rrf: f.rrf, matchedTerms: countMatches(`${r.documentName} ${r.chunk.heading ?? ""} ${r.chunk.text}`, terms),
+        source: (f.inVec && f.inKw ? "both" : f.inVec ? "vector" : "keyword") as SearchResult["source"],
+      };
+    })
+    .sort((a, b) => b.rrf - a.rrf)
+    .slice(0, topK)
+    .map(({ rrf: _rrf, ...r }) => r);
 }
 
-/** Passages for the AI analyst: relevant, never flagged, labelled d1..d5. */
+/**
+ * Passages for the AI analyst, labelled d1..d5, never flagged. Relevant means a good
+ * embedding match OR at least two of the question's distinctive words in the passage, so a
+ * price-list row is found for "contractor price of the cordless drill" even when the
+ * embedding of a long table scores low.
+ */
 export async function retrievePassages(workspaceId: string, userId: string, question: string): Promise<Passage[]> {
+  const terms = queryTerms(question);
+  const need = Math.min(2, terms.length);
   const results = await searchKnowledge(workspaceId, userId, question, { includeFlagged: false });
   return results
-    .filter((r) => r.score >= MIN_SCORE)
+    .filter((r) => r.score >= MIN_SCORE || (need > 0 && r.matchedTerms >= need && r.source !== "vector"))
     .slice(0, MAX_PASSAGES)
     .map((r, i) => ({ id: `d${i + 1}`, chunkId: r.chunkId, documentId: r.documentId, documentName: r.documentName, page: r.page, heading: r.heading, text: r.text, score: r.score }));
 }

@@ -144,3 +144,11 @@ export async function deleteDocumentFiles(workspaceId: string, documentId: strin
   const res = await call(`/v1/workspaces/${workspaceId}/documents/${documentId}`, { method: "DELETE" });
   if (!res.ok) throw await rejection(res);
 }
+
+export async function renderReportPdf(payload: unknown): Promise<ArrayBuffer> {
+  const res = await call("/v1/reports/render", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), timeoutMs: 60_000,
+  });
+  if (!res.ok) throw await rejection(res);
+  return res.arrayBuffer();
+}
